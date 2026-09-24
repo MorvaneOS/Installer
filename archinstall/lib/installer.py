@@ -11,7 +11,6 @@ from subprocess import CalledProcessError
 from types import TracebackType
 from typing import Any, Self
 
-from archinstall.lib.boot import Boot
 from archinstall.lib.bootloader.utils import validate_bootloader_layout
 from archinstall.lib.command import SysCommand, run
 from archinstall.lib.disk.fido import Fido2
@@ -25,7 +24,7 @@ from archinstall.lib.disk.utils import (
 	mount,
 	swapon,
 )
-from archinstall.lib.exceptions import DiskError, HardwareIncompatibilityError, RequirementError, ServiceException, SysCallError
+from archinstall.lib.exceptions import DiskError, HardwareIncompatibilityError, RequirementError, SysCallError
 from archinstall.lib.hardware import SysInfo
 from archinstall.lib.linux_path import LPath
 from archinstall.lib.locale.utils import verify_keyboard_layout, verify_x11_keyboard_layout
@@ -66,7 +65,39 @@ from archinstall.lib.translationhandler import tr
 # pacman picks the first initramfs provider from the host's pacman.conf, which on non-Arch
 # hosts (EndeavourOS prefers dracut, etc.) breaks the installer's mkinitcpio() and
 # _config_uki() methods that assume mkinitcpio is present in the chroot.
-__packages__ = ['base', 'sudo', 'linux-firmware', 'mkinitcpio'] + [k.value for k in Kernel]
+# MorvaneOS: runit is the init system; elogind stands in for systemd-logind.
+__packages__ = ['base', 'sudo', 'linux-firmware', 'mkinitcpio', 'runit', 'elogind-runit'] + [k.value for k in Kernel]
+
+# MorvaneOS: systemd unit names used by upstream -> (Artix runit service name, package
+# that ships it), taken from the /etc/runit/sv entries in Artix's repos. Names not listed
+# here are looked up unchanged under /etc/runit/sv.
+__runit_services__: dict[str, tuple[str, str | None]] = {
+	'apache': ('apache', 'apache-runit'),
+	'httpd': ('apache', 'apache-runit'),
+	'avahi-daemon': ('avahi-daemon', 'avahi-runit'),
+	'bluetooth': ('bluetoothd', 'bluez-runit'),
+	'cronie': ('cronie', 'cronie-runit'),
+	'cups': ('cupsd', 'cups-runit'),
+	'dhcpcd': ('dhcpcd', 'dhcpcd-runit'),
+	'docker': ('docker', 'docker-runit'),
+	'espeakup': ('espeakup', 'espeakup-runit'),
+	'firewalld': ('firewalld', 'firewalld-runit'),
+	'gdm': ('gdm', 'gdm-runit'),
+	'greetd': ('greetd', 'greetd-runit'),
+	'iwd': ('iwd', 'iwd-runit'),
+	'lightdm': ('lightdm', 'lightdm-runit'),
+	'lighttpd': ('lighttpd', 'lighttpd-runit'),
+	'ly': ('ly', 'ly-runit'),
+	'mariadb': ('mariadb', 'mariadb-runit'),
+	'NetworkManager': ('NetworkManager', 'networkmanager-runit'),
+	'nginx': ('nginx', 'nginx-runit'),
+	'postgresql': ('postgresql', 'postgresql-runit'),
+	'power-profiles-daemon': ('power-profiles-daemon', 'power-profiles-daemon-runit'),
+	'sddm': ('sddm', 'sddm-runit'),
+	'sshd': ('sshd', 'openssh-runit'),
+	'systemd-timesyncd': ('ntpd', 'ntp-runit'),
+	'ufw': ('ufw', 'ufw-runit'),
+}
 
 # Additional packages that are installed if the user is running the Live ISO with accessibility tools enabled
 __accessibility_packages__ = ['brltty', 'espeakup', 'alsa-utils']
@@ -85,7 +116,7 @@ class Installer:
 		`Installer()` is the wrapper for most basic installation steps.
 		It also wraps :py:func:`~archinstall.Installer.pacstrap` among other things.
 		"""
-		self._base_packages = base_packages or __packages__[:4]
+		self._base_packages = base_packages or __packages__[:6]
 		self.kernels = kernels or [DEFAULT_KERNEL.value]
 		self._disk_config = disk_config
 
@@ -186,50 +217,10 @@ class Installer:
 		We need to wait for it before we continue since we opted in to use a custom mirror/region.
 		"""
 
-		if not skip_ntp:
-			info(tr('Waiting for time sync (timedatectl show) to complete.'))
-
-			started_wait = time.monotonic()
-			notified = False
-			while True:
-				if not notified and time.monotonic() - started_wait > 5:
-					notified = True
-					warn(tr('Time synchronization not completing, while you wait - check the docs for workarounds: https://archinstall.readthedocs.io/'))
-
-				time_val = SysCommand('timedatectl show --property=NTPSynchronized --value').decode()
-				if time_val and time_val.strip() == 'yes':
-					break
-				time.sleep(1)
-		else:
-			info(tr('Skipping waiting for automatic time sync (this can cause issues if time is out of sync during installation)'))
-
-		if not offline:
-			info('Waiting for automatic mirror selection (reflector) to complete.')
-			for _ in range(60):
-				if self._service_state('reflector') in ('dead', 'failed', 'exited'):
-					break
-				time.sleep(1)
-			else:
-				warn('Reflector did not complete within 60 seconds, continuing anyway...')
-		else:
-			info('Skipped reflector...')
-
-		# info('Waiting for pacman-init.service to complete.')
-		# while self._service_state('pacman-init') not in ('dead', 'failed', 'exited'):
-		# time.sleep(1)
-
-		if not skip_wkd:
-			info(tr('Waiting for Arch Linux keyring sync (archlinux-keyring-wkd-sync) to complete.'))
-			# Wait for the timer to kick in
-			while self._service_started('archlinux-keyring-wkd-sync.timer') is None:
-				time.sleep(1)
-
-			# Wait for the service to enter a finished state
-			while self._service_state('archlinux-keyring-wkd-sync.service') not in ('dead', 'failed', 'exited'):
-				time.sleep(1)
-
-			if self._service_state('archlinux-keyring-wkd-sync.service') == 'failed':
-				warn('archlinux-keyring-wkd-sync failed, keyring may need reinit during pacman sync')
+		# MorvaneOS: upstream waits here for systemd-timesyncd, reflector and
+		# archlinux-keyring-wkd-sync. None of them exist on a runit live ISO,
+		# and the waits would loop forever, so they are skipped.
+		debug(f'Skipping systemd service waits (offline={offline}, skip_ntp={skip_ntp}, skip_wkd={skip_wkd})')
 
 	def _verify_boot_part(self) -> None:
 		"""
@@ -716,17 +707,43 @@ class Installer:
 		# fstrim is owned by util-linux, a dependency of both base and systemd.
 		self.enable_service('fstrim.timer')
 
+	@staticmethod
+	def _runit_service(service: str) -> tuple[str, str | None]:
+		"""Translate a systemd unit name into (runit service name, package that ships it)."""
+		name = service
+		for suffix in ('.service', '.timer', '.socket'):
+			name = name.removesuffix(suffix)
+		name, _, instance = name.partition('@')
+
+		if name == 'getty' and instance:
+			return f'agetty-{instance}', None
+
+		return __runit_services__.get(name, (name, None))
+
 	def enable_service(self, services: str | list[str]) -> None:
+		# MorvaneOS: runit enables a service by linking /etc/runit/sv/<name> into
+		# /etc/runit/runsvdir/default. Services without a runit version (systemd-only
+		# units, timers) are skipped with a warning instead of failing the install.
 		if isinstance(services, str):
 			services = [services]
 
 		for service in services:
-			info(f'Enabling service {service}')
+			sv_name, package = self._runit_service(service)
+			sv_dir = self.target / 'etc/runit/sv' / sv_name
 
-			try:
-				SysCommand(f'systemctl --root={self.target} enable {service}')
-			except SysCallError as err:
-				raise ServiceException(f'Unable to start service {service}: {err}')
+			if not sv_dir.is_dir() and package:
+				info(f'Installing {package} for service {sv_name}')
+				self.pacman.strap(package)
+
+			if not sv_dir.is_dir():
+				warn(f'Service {service} has no runit version on MorvaneOS, skipping')
+				continue
+
+			info(f'Enabling service {sv_name}')
+			link = self.target / 'etc/runit/runsvdir/default' / sv_name
+			link.parent.mkdir(parents=True, exist_ok=True)
+			if not link.is_symlink():
+				link.symlink_to(Path('/etc/runit/sv') / sv_name)
 
 			for plugin in plugins.values():
 				if hasattr(plugin, 'on_service'):
@@ -737,15 +754,14 @@ class Installer:
 			services_disable = [services_disable]
 
 		for service in services_disable:
-			info(f'Disabling service {service}')
-
-			try:
-				SysCommand(f'systemctl --root={self.target} disable {service}')
-			except SysCallError as err:
-				raise ServiceException(f'Unable to disable service {service}: {err}')
+			sv_name, _ = self._runit_service(service)
+			link = self.target / 'etc/runit/runsvdir/default' / sv_name
+			info(f'Disabling service {sv_name}')
+			if link.is_symlink():
+				link.unlink()
 
 	def run_command(self, cmd: str, peek_output: bool = False) -> SysCommand:
-		return SysCommand(f'arch-chroot -S {self.target} {cmd}', peek_output=peek_output)
+		return SysCommand(f'artix-chroot {self.target} {cmd}', peek_output=peek_output)
 
 	def arch_chroot(self, cmd: str, run_as: str | None = None, peek_output: bool = False) -> SysCommand:
 		if run_as:
@@ -754,10 +770,10 @@ class Installer:
 		return self.run_command(cmd, peek_output=peek_output)
 
 	def _chroot_argv(self, *args: str) -> list[str]:
-		return ['arch-chroot', '-S', str(self.target), *args]
+		return ['artix-chroot', str(self.target), *args]
 
 	def drop_to_shell(self) -> None:
-		subprocess.check_call(f'arch-chroot {self.target}', shell=True)
+		subprocess.check_call(f'artix-chroot {self.target}', shell=True)
 
 	def configure_nic(self, nic: Nic) -> None:
 		conf = nic.as_systemd_config()
@@ -2057,21 +2073,24 @@ class Installer:
 				error(f'Invalid keyboard language specified: {language}')
 				return False
 
-			# In accordance with https://github.com/archlinux/archinstall/issues/107#issuecomment-841701968
-			# Setting an empty keymap first, allows the subsequent call to set layout for both console and x11.
-			with Boot(self.target) as session:
-				os.system('systemd-run --machine=archinstall --pty localectl set-keymap ""')  # type: ignore[deprecated]
+			# MorvaneOS: upstream boots the new system with systemd-nspawn to run
+			# localectl. The console keymap is already in /etc/vconsole.conf
+			# (set_vconsole); X11 gets the same layout when it knows the name.
+			if verify_x11_keyboard_layout(language):
+				self._write_x11_keymap(language)
 
-				try:
-					session.SysCommand(['localectl', 'set-keymap', language])
-				except SysCallError as err:
-					raise ServiceException(f"Unable to set locale '{language}' for console: {err}")
-
-				info(f'Keyboard language for this installation is now set to: {language}')
+			info(f'Keyboard language for this installation is now set to: {language}')
 		else:
 			info('Keyboard language was not changed from default (no language specified)')
 
 		return True
+
+	def _write_x11_keymap(self, layout: str) -> None:
+		# What `localectl set-x11-keymap` writes on systemd systems
+		conf = self.target / 'etc/X11/xorg.conf.d/00-keyboard.conf'
+		conf.parent.mkdir(parents=True, exist_ok=True)
+		conf.write_text(f'Section "InputClass"\n\tIdentifier "system-keyboard"\n\tMatchIsKeyboard "on"\n\tOption "XkbLayout" "{layout}"\nEndSection\n')
+		info(f'Wrote X11 keyboard layout {layout} to {conf}')
 
 	def set_x11_keyboard_language(self, language: str) -> bool:
 		"""
@@ -2085,13 +2104,7 @@ class Installer:
 				error(f'Invalid x11-keyboard language specified: {language}')
 				return False
 
-			with Boot(self.target) as session:
-				session.SysCommand(['localectl', 'set-x11-keymap', '""'])
-
-				try:
-					session.SysCommand(['localectl', 'set-x11-keymap', language])
-				except SysCallError as err:
-					raise ServiceException(f"Unable to set locale '{language}' for X11: {err}")
+			self._write_x11_keymap(language)
 		else:
 			info('X11-Keyboard language was not changed from default (no language specified)')
 
@@ -2126,7 +2139,8 @@ class Installer:
 
 
 def accessibility_tools_in_use() -> bool:
-	return os.system('systemctl is-active --quiet espeakup.service') == 0  # type: ignore[deprecated]
+	# MorvaneOS: no systemctl on runit; check for the process instead
+	return os.system('pgrep -x espeakup >/dev/null 2>&1') == 0  # type: ignore[deprecated]
 
 
 def run_custom_user_commands(commands: list[str], installation: Installer) -> None:
@@ -2138,6 +2152,6 @@ def run_custom_user_commands(commands: list[str], installation: Installer) -> No
 		with open(chroot_path, 'w') as user_script:
 			user_script.write(command)
 
-		SysCommand(f'arch-chroot -S {installation.target} bash {script_path}')
+		SysCommand(f'artix-chroot {installation.target} bash {script_path}')
 
 		os.unlink(chroot_path)

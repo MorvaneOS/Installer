@@ -96,7 +96,7 @@ class AuthenticationHandler:
 			info(tr('You may need to enter the PIN and then touch your U2F device to register it'))
 
 			cmd = ' '.join(
-				['arch-chroot', '-S', str(install_session.target), 'pamu2fcfg', '-u', user.username, '-o', f'pam://{hostname}', '-i', f'pam://{hostname}']
+				['artix-chroot', str(install_session.target), 'pamu2fcfg', '-u', user.username, '-o', f'pam://{hostname}', '-i', f'pam://{hostname}']
 			)
 
 			debug(f'Enrolling U2F device: {cmd}')

@@ -90,13 +90,13 @@ def list_interfaces(skip_loopback: bool = True) -> dict[str, str]:
 
 
 def update_keyring() -> bool:
-	info('Updating archlinux-keyring ...')
+	info('Updating artix-keyring ...')
 	try:
-		Pacman.run('-Sy --noconfirm archlinux-keyring')
+		Pacman.run('-Sy --noconfirm artix-keyring')
 		return True
 	except SysCallError:
 		if os.geteuid() != 0:
-			error("update_keyring() uses 'pacman -Sy archlinux-keyring' which requires root.")
+			error("update_keyring() uses 'pacman -Sy artix-keyring' which requires root.")
 
 	return False
 

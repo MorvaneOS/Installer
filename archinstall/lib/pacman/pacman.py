@@ -87,7 +87,7 @@ class Pacman:
 
 		try:
 			SysCommand('pacman-key --init')
-			SysCommand('pacman-key --populate archlinux')
+			SysCommand('pacman-key --populate artix')
 			debug('Keyring reinitialized successfully')
 		except SysCallError as err:
 			debug(f'Keyring reinit failed: {err}')
@@ -106,8 +106,8 @@ class Pacman:
 
 		self.ask(
 			'Could not strap in packages',
-			'Pacstrap failed. See /var/log/archinstall/install.log or above message for error details',
+			'basestrap failed. See /var/log/archinstall/install.log or above message for error details',
 			SysCommand,
-			f'pacstrap -C {PACMAN_CONF} -K {self.target} {" ".join(packages)} --noconfirm --needed',
+			f'basestrap -C {PACMAN_CONF} -K {self.target} {" ".join(packages)} --noconfirm --needed',
 			peek_output=True,
 		)

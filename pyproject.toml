@@ -46,6 +46,7 @@ doc = ["sphinx"]
 
 [project.scripts]
 archinstall = "archinstall.main:main"
+morvane-install = "archinstall.main:main"
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.rst", "USAGE.rst"]}

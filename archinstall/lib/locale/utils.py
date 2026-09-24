@@ -1,3 +1,4 @@
+import zoneinfo
 from functools import lru_cache
 from pathlib import Path
 
@@ -6,16 +7,13 @@ from archinstall.lib.exceptions import ServiceException, SysCallError
 from archinstall.lib.log import error
 from archinstall.lib.utils.util import running_from_iso
 
+# MorvaneOS: localectl and timedatectl are systemd tools, so the lists below are
+# read straight from the files those tools use.
+
 
 def list_keyboard_languages() -> list[str]:
-	return (
-		SysCommand(
-			'localectl --no-pager list-keymaps',
-			environment_vars={'SYSTEMD_COLORS': '0'},
-		)
-		.decode()
-		.splitlines()
-	)
+	keymaps = Path('/usr/share/kbd/keymaps')
+	return sorted({path.name.removesuffix('.gz').removesuffix('.map') for path in keymaps.rglob('*.map*')})
 
 
 def list_locales() -> list[str]:
@@ -37,14 +35,20 @@ def list_console_fonts() -> list[str]:
 
 
 def list_x11_keyboard_languages() -> list[str]:
-	return (
-		SysCommand(
-			'localectl --no-pager list-x11-keymap-layouts',
-			environment_vars={'SYSTEMD_COLORS': '0'},
-		)
-		.decode()
-		.splitlines()
-	)
+	# The "! layout" section of xkeyboard-config's rules list; empty when X11 isn't installed
+	layouts: list[str] = []
+	try:
+		lines = Path('/usr/share/X11/xkb/rules/base.lst').read_text().splitlines()
+	except OSError:
+		return layouts
+
+	in_layouts = False
+	for line in lines:
+		if line.startswith('!'):
+			in_layouts = line.strip() == '! layout'
+		elif in_layouts and line.strip():
+			layouts.append(line.split()[0])
+	return sorted(layouts)
 
 
 def verify_keyboard_layout(layout: str) -> bool:
@@ -63,27 +67,16 @@ def verify_x11_keyboard_layout(layout: str) -> bool:
 
 def get_kb_layout() -> str:
 	try:
-		lines = (
-			SysCommand(
-				'localectl --no-pager status',
-				environment_vars={'SYSTEMD_COLORS': '0'},
-			)
-			.decode()
-			.splitlines()
-		)
-	except Exception:
+		lines = Path('/etc/vconsole.conf').read_text().splitlines()
+	except OSError:
 		return ''
 
-	vcline = ''
+	layout = ''
 	for line in lines:
-		if 'VC Keymap: ' in line:
-			vcline = line
+		if line.startswith('KEYMAP='):
+			layout = line.removeprefix('KEYMAP=').strip().strip('"')
 
-	if vcline == '':
-		return ''
-
-	layout = vcline.split(': ')[1]
-	if not verify_keyboard_layout(layout):
+	if not layout or not verify_keyboard_layout(layout):
 		return ''
 
 	return layout
@@ -101,7 +94,7 @@ def set_kb_layout(locale: str) -> bool:
 			return False
 
 		try:
-			SysCommand(f'localectl set-keymap {locale}')
+			SysCommand(f'loadkeys {locale}')
 		except SysCallError as err:
 			raise ServiceException(f"Unable to set locale '{locale}' for console: {err}")
 
@@ -111,11 +104,4 @@ def set_kb_layout(locale: str) -> bool:
 
 
 def list_timezones() -> list[str]:
-	return (
-		SysCommand(
-			'timedatectl --no-pager list-timezones',
-			environment_vars={'SYSTEMD_COLORS': '0'},
-		)
-		.decode()
-		.splitlines()
-	)
+	return sorted(zone for zone in zoneinfo.available_timezones() if not zone.startswith(('posix/', 'right/')))
