@@ -2,6 +2,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import subprocess
 import textwrap
 import time
@@ -103,6 +104,20 @@ __runit_services__: dict[str, tuple[str, str | None]] = {
 
 # Additional packages that are installed if the user is running the Live ISO with accessibility tools enabled
 __accessibility_packages__ = ['brltty', 'espeakup', 'alsa-utils']
+
+
+def morvane_grub_defaults(config: str, theme: Path) -> str:
+	"""MorvaneOS settings in /etc/default/grub: menu name and theme."""
+	# The name GRUB shows in the boot menu (Artix's default is "Artix")
+	config = re.sub(r'^GRUB_DISTRIBUTOR=.*$', 'GRUB_DISTRIBUTOR="MorvaneOS"', config, flags=re.MULTILINE)
+
+	theme_line = f'GRUB_THEME="{theme}"'
+	config, found = re.subn(r'^#?GRUB_THEME=.*$', theme_line, config, count=1, flags=re.MULTILINE)
+	if not found:
+		config = config.rstrip('\n') + f'\n{theme_line}\n'
+
+	# A console-only terminal would hide the theme
+	return re.sub(r'^(GRUB_TERMINAL_OUTPUT=["\']?console["\']?)$', r'#\1', config, flags=re.MULTILINE)
 
 
 class Installer:
@@ -1358,6 +1373,7 @@ class Installer:
 		debug('Installing grub bootloader')
 
 		self.pacman.strap('grub')
+		self.pacman.strap('morvane-grub-theme')
 
 		info(f'GRUB boot partition: {boot_partition.dev_path}')
 
@@ -1450,8 +1466,12 @@ class Installer:
 				count=1,
 				flags=re.MULTILINE,
 			)
-			# MorvaneOS: the name GRUB shows in the boot menu (Artix's default is "Artix")
-			config = re.sub(r'^GRUB_DISTRIBUTOR=.*$', 'GRUB_DISTRIBUTOR="MorvaneOS"', config, flags=re.MULTILINE)
+			# MorvaneOS: the GRUB theme. GRUB reads it from /boot, which it can always
+			# reach, rather than /usr/share (unreadable at boot when the root partition
+			# is encrypted). morvane-grub-theme's pacman hook keeps this copy updated.
+			theme_dir = boot_dir / 'grub/themes/morvane'
+			shutil.copytree(self.target / 'usr/share/grub/themes/morvane', self.target / theme_dir.relative_to('/'), dirs_exist_ok=True)
+			config = morvane_grub_defaults(config, theme_dir / 'theme.txt')
 
 			grub_default.write_text(config)
 
