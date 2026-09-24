@@ -4,10 +4,10 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from archinstall.default_profiles.profile import CustomSetting, GreeterType
-from archinstall.lib.args import ArchConfig, ArchConfigHandler, Arguments
-from archinstall.lib.hardware import GfxDriver
-from archinstall.lib.models.application import (
+from morvane_installer.default_profiles.profile import CustomSetting, GreeterType
+from morvane_installer.lib.args import ArchConfig, ArchConfigHandler, Arguments
+from morvane_installer.lib.hardware import GfxDriver
+from morvane_installer.lib.models.application import (
 	ApplicationConfiguration,
 	Audio,
 	AudioConfiguration,
@@ -15,18 +15,18 @@ from archinstall.lib.models.application import (
 	PrintServiceConfiguration,
 	ZramConfiguration,
 )
-from archinstall.lib.models.authentication import AuthenticationConfiguration, U2FLoginConfiguration, U2FLoginMethod
-from archinstall.lib.models.bootloader import Bootloader, BootloaderConfiguration
-from archinstall.lib.models.device import DiskLayoutConfiguration, DiskLayoutType
-from archinstall.lib.models.locale import LocaleConfiguration
-from archinstall.lib.models.mirrors import CustomRepository, CustomServer, MirrorConfiguration, MirrorRegion, SignCheck, SignOption
-from archinstall.lib.models.network import NetworkConfiguration, Nic, NicType
-from archinstall.lib.models.packages import Repository
-from archinstall.lib.models.pacman import PacmanConfiguration
-from archinstall.lib.models.profile import ProfileConfiguration
-from archinstall.lib.models.users import Password, User
-from archinstall.lib.profile.profiles_handler import profile_handler
-from archinstall.lib.translationhandler import translation_handler
+from morvane_installer.lib.models.authentication import AuthenticationConfiguration, U2FLoginConfiguration, U2FLoginMethod
+from morvane_installer.lib.models.bootloader import Bootloader, BootloaderConfiguration
+from morvane_installer.lib.models.device import DiskLayoutConfiguration, DiskLayoutType
+from morvane_installer.lib.models.locale import LocaleConfiguration
+from morvane_installer.lib.models.mirrors import CustomRepository, CustomServer, MirrorConfiguration, MirrorRegion, SignCheck, SignOption
+from morvane_installer.lib.models.network import NetworkConfiguration, Nic, NicType
+from morvane_installer.lib.models.packages import Repository
+from morvane_installer.lib.models.pacman import PacmanConfiguration
+from morvane_installer.lib.models.profile import ProfileConfiguration
+from morvane_installer.lib.models.users import Password, User
+from morvane_installer.lib.profile.profiles_handler import profile_handler
+from morvane_installer.lib.translationhandler import translation_handler
 
 
 def test_default_args(monkeypatch: MonkeyPatch) -> None:
@@ -137,7 +137,7 @@ def test_config_file_parsing(
 	arch_config.disk_config.device_modifications = []  # type: ignore[union-attr]
 
 	assert arch_config == ArchConfig(
-		version=version('archinstall'),
+		version=version('morvane-installer'),
 		script='test_script',
 		app_config=ApplicationConfiguration(
 			bluetooth_config=BluetoothConfiguration(enabled=True),

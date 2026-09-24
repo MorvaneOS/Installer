@@ -1,1 +1,1 @@
-../archinstall/scripts/guided.py
+../morvane_installer/scripts/guided.py

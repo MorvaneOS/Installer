@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from archinstall.default_profiles.minimal import MinimalProfile
-from archinstall.lib.disk.device_handler import device_handler
-from archinstall.lib.disk.filesystem import FilesystemHandler
-from archinstall.lib.installer import Installer
-from archinstall.lib.models.device import (
+from morvane_installer.default_profiles.minimal import MinimalProfile
+from morvane_installer.lib.disk.device_handler import device_handler
+from morvane_installer.lib.disk.filesystem import FilesystemHandler
+from morvane_installer.lib.installer import Installer
+from morvane_installer.lib.models.device import (
 	DeviceModification,
 	DiskEncryption,
 	DiskLayoutConfiguration,
@@ -18,9 +18,9 @@ from archinstall.lib.models.device import (
 	Size,
 	Unit,
 )
-from archinstall.lib.models.profile import ProfileConfiguration
-from archinstall.lib.models.users import Password, User
-from archinstall.lib.profile.profiles_handler import profile_handler
+from morvane_installer.lib.models.profile import ProfileConfiguration
+from morvane_installer.lib.models.users import Password, User
+from morvane_installer.lib.profile.profiles_handler import profile_handler
 
 # we're creating a new ext4 filesystem installation
 fs_type = FilesystemType('ext4')

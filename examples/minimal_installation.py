@@ -1,1 +1,1 @@
-../archinstall/scripts/minimal.py
+../morvane_installer/scripts/minimal.py

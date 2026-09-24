@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from archinstall.lib.args import USER_CONFIG_FILE, USER_CREDS_FILE, ArchConfigHandler
+from morvane_installer.lib.args import USER_CONFIG_FILE, USER_CREDS_FILE, ArchConfigHandler
 
 
 def test_user_config_roundtrip(

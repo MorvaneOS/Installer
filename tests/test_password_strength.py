@@ -1,6 +1,6 @@
 import pytest
 
-from archinstall.lib.models.users import PasswordStrength
+from morvane_installer.lib.models.users import PasswordStrength
 
 
 @pytest.mark.parametrize(

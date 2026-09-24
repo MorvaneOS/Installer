@@ -1,1 +1,1 @@
-../archinstall/scripts/only_hd.py
+../morvane_installer/scripts/only_hd.py

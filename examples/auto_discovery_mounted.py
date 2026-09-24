@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from archinstall.lib.disk.device_handler import device_handler
-from archinstall.lib.models.device import DiskLayoutConfiguration, DiskLayoutType
+from morvane_installer.lib.disk.device_handler import device_handler
+from morvane_installer.lib.models.device import DiskLayoutConfiguration, DiskLayoutType
 
 root_mount_dir = Path('/mnt/archinstall')
 
