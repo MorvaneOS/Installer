@@ -17,7 +17,8 @@ class Bootloader(Enum):
 	Refind = 'Refind'
 
 	def has_uki_support(self) -> bool:
-		return self != Bootloader.NO_BOOTLOADER
+		# MorvaneOS: unified kernel images need systemd's EFI stub, which Artix doesn't ship
+		return False
 
 	def has_removable_support(self) -> bool:
 		match self:
@@ -40,10 +41,8 @@ class Bootloader(Enum):
 	def get_default(cls, uefi: bool, skip_boot: bool = False) -> Self:
 		if skip_boot:
 			return cls.NO_BOOTLOADER
-		elif uefi:
-			return cls.Systemd
-		else:
-			return cls.Grub
+		# MorvaneOS: systemd-boot needs systemd, so GRUB is the default everywhere
+		return cls.Grub
 
 	@classmethod
 	def from_arg(cls, bootloader: str, skip_boot: bool) -> Self:

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Self
 
 from archinstall.lib.command import SysCommand
-from archinstall.lib.exceptions import SysCallError
 from archinstall.lib.log import debug
 from archinstall.lib.networking import enrich_iface_types, list_interfaces
 from archinstall.lib.translationhandler import tr
@@ -222,6 +221,20 @@ class _SysInfo:
 _sys_info = _SysInfo()
 
 
+# DMI vendor/product markers -> the names systemd-detect-virt reports
+_VM_VENDORS: list[tuple[str, str]] = [
+	('KVM', 'kvm'),
+	('QEMU', 'qemu'),
+	('VMware', 'vmware'),
+	('VirtualBox', 'oracle'),
+	('innotek', 'oracle'),
+	('Microsoft Corporation', 'microsoft'),
+	('Xen', 'xen'),
+	('Parallels', 'parallels'),
+	('Bochs', 'bochs'),
+]
+
+
 class SysInfo:
 	@staticmethod
 	def has_battery() -> bool:
@@ -292,22 +305,31 @@ class SysInfo:
 
 	@staticmethod
 	def virtualization() -> str | None:
-		try:
-			return str(SysCommand('systemd-detect-virt')).strip('\r\n')
-		except SysCallError as err:
-			debug(f'Could not detect virtual system: {err}')
+		# MorvaneOS: systemd-detect-virt doesn't exist here. Check the same things it
+		# does: firmware (DMI) vendor strings, then the CPU's "hypervisor" flag.
+		dmi = ''
+		for field in ('sys_vendor', 'product_name', 'bios_vendor', 'board_vendor'):
+			try:
+				dmi += Path(f'/sys/class/dmi/id/{field}').read_text() + ' '
+			except OSError:
+				pass
 
-		return None
+		for marker, name in _VM_VENDORS:
+			if marker in dmi:
+				return name
+
+		try:
+			if ' hypervisor' in Path('/proc/cpuinfo').read_text():
+				return 'vm-other'
+		except OSError as err:
+			debug(f'Could not detect virtual system: {err}')
+			return None
+
+		return 'none'
 
 	@staticmethod
 	def is_vm() -> bool:
-		try:
-			result = SysCommand('systemd-detect-virt')
-			return b'none' not in b''.join(result).lower()
-		except SysCallError as err:
-			debug(f'System is not running in a VM: {err}')
-
-		return False
+		return SysInfo.virtualization() not in (None, 'none')
 
 	@staticmethod
 	def requires_sof_fw() -> bool:

@@ -92,6 +92,8 @@ class DiskEncryptionMenu(AbstractSubMenu[DiskEncryption]):
 				text=tr('HSM'),
 				action=select_hsm,
 				value=self._enc_config.hsm_device,
+				# MorvaneOS: FIDO2 enrolment needs systemd-cryptenroll
+				enabled=False,
 				dependencies=[self._check_dep_enc_type],
 				preview_action=self._prev_hsm,
 				key='hsm_device',

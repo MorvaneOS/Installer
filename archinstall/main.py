@@ -40,10 +40,10 @@ def _check_online(wifi_handler: WifiHandler | None = None) -> bool:
 		ping('1.1.1.1')
 	except OSError as ex:
 		if 'Network is unreachable' in str(ex):
-			if wifi_handler is not None:
-				result: bool = tui.run(wifi_handler)
-				if not result:
-					return False
+			# MorvaneOS: upstream opens a wpa_supplicant Wi-Fi picker here; the live
+			# ISO uses iwd, so point to iwctl (as the login message does) instead.
+			print(tr('No internet connection. Connect with iwctl (see the welcome message), then run morvane-install again.'))
+			return False
 
 	return True
 

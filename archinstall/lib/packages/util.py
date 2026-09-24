@@ -9,7 +9,7 @@ def check_version_upgrade() -> str | None:
 	debug('Checking version')
 	upgrade = None
 
-	upgrade = check_package_upgrade('archinstall')
+	upgrade = check_package_upgrade('morvane-installer')
 
 	if upgrade is None:
 		debug('No archinstall upgrades found')

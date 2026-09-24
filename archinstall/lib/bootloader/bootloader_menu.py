@@ -231,6 +231,9 @@ async def select_bootloader(
 
 	default = Bootloader.get_default(uefi, skip_boot)
 
+	# MorvaneOS: systemd-boot (bootctl) isn't available
+	hidden_options += [Bootloader.Systemd]
+
 	if not skip_boot:
 		hidden_options += [Bootloader.NO_BOOTLOADER]
 
