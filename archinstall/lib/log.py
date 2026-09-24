@@ -12,7 +12,7 @@ from archinstall.lib.utils.util import timestamp
 class Logger:
 	def __init__(self, path: Path | None = None) -> None:
 		if path is None:
-			path = Path('/var/log/archinstall')
+			path = Path('/var/log/morvane-installer')
 
 		self._path: Path = path
 

@@ -177,7 +177,7 @@ class Installer:
 			# We avoid printing /mnt/<log path> because that might confuse people if they note it down
 			# and then reboot, and an identical log file will be found in the ISO medium anyway.
 			print(tr('[!] A log file has been created here: {}').format(logger.path))
-			print(tr('Please submit this issue (and file) to https://github.com/archlinux/archinstall/issues'))
+			print(tr('Please submit this issue (and file) to https://github.com/MorvaneOS/Installer/issues'))
 
 			# Return None to propagate the exception
 			return None
@@ -197,7 +197,7 @@ class Installer:
 				warn(f' - {step}')
 
 			warn(f'Detailed error logs can be found at: {logger.directory}')
-			warn('Submit this zip file as an issue to https://github.com/archlinux/archinstall/issues')
+			warn('Submit this zip file as an issue to https://github.com/MorvaneOS/Installer/issues')
 
 			self.sync_log_to_install_medium()
 			return False
@@ -695,7 +695,7 @@ class Installer:
 		return False
 
 	def activate_time_synchronization(self) -> None:
-		info('Activating systemd-timesyncd for time synchronization using Arch Linux and ntp.org NTP servers')
+		info('Activating time synchronization (ntpd)')
 		self.enable_service('systemd-timesyncd')
 
 	def enable_espeakup(self) -> None:
@@ -950,7 +950,7 @@ class Installer:
 			(self.target / 'boot' / ucode).unlink(missing_ok=True)
 			self._base_packages.append(ucode.stem)
 		else:
-			debug('Archinstall will not install any ucode.')
+			debug('The installer will not install any ucode.')
 
 		debug(f'Optional repositories: {optional_repositories}')
 
@@ -1239,9 +1239,9 @@ class Installer:
 
 		entry_template = textwrap.dedent(
 			f"""\
-			# Created by: archinstall
+			# Created by: morvane-install
 			# Created on: {self.init_time}
-			title	Arch Linux ({{kernel}})
+			title	MorvaneOS ({{kernel}})
 			linux	/vmlinuz-{{kernel}}
 			initrd	/initramfs-{{kernel}}.img
 			options {' '.join(self._get_kernel_params(root))}
@@ -1446,6 +1446,8 @@ class Installer:
 				count=1,
 				flags=re.MULTILINE,
 			)
+			# MorvaneOS: the name GRUB shows in the boot menu (Artix's default is "Artix")
+			config = re.sub(r'^GRUB_DISTRIBUTOR=.*$', 'GRUB_DISTRIBUTOR="MorvaneOS"', config, flags=re.MULTILINE)
 
 			grub_default.write_text(config)
 
@@ -1540,7 +1542,7 @@ class Installer:
 						' --create'
 						f' --disk {parent_dev_path}'
 						f' --part {efi_partition.partn}'
-						' --label "Arch Linux Limine Bootloader"'
+						' --label "MorvaneOS Limine Bootloader"'
 						f" --loader '{loader_path}'"
 						' --unicode'
 						' --verbose',
@@ -1604,7 +1606,7 @@ class Installer:
 					f'path: boot():/EFI/Linux/arch-{kernel}.efi',
 					f'cmdline: {kernel_params}',
 				]
-				config_contents += f'\n/Arch Linux ({kernel})\n'
+				config_contents += f'\n/MorvaneOS ({kernel})\n'
 				config_contents += '\n'.join(f'    {it}' for it in entry) + '\n'
 			else:
 				entry = [
@@ -1613,7 +1615,7 @@ class Installer:
 					f'cmdline: {kernel_params}',
 					f'module_path: {path_root}:/initramfs-{kernel}.img',
 				]
-				config_contents += f'\n/Arch Linux ({kernel})\n'
+				config_contents += f'\n/MorvaneOS ({kernel})\n'
 				config_contents += '\n'.join(f'    {it}' for it in entry) + '\n'
 
 		config_path.write_text(config_contents)
@@ -1660,7 +1662,7 @@ class Installer:
 			'--part',
 			str(boot_partition.partn),
 			'--label',
-			'Arch Linux ({kernel})',
+			'MorvaneOS ({kernel})',
 			'--loader',
 			loader,
 			'--unicode',
@@ -1727,7 +1729,7 @@ class Installer:
 
 		for kernel in self.kernels:
 			if uki_enabled:
-				entry = f'"Arch Linux ({kernel}) UKI" "{kernel_params}"'
+				entry = f'"MorvaneOS ({kernel}) UKI" "{kernel_params}"'
 			else:
 				if boot_on_root:
 					# Kernels are in /boot subdirectory of root filesystem
@@ -1745,7 +1747,7 @@ class Installer:
 				else:
 					# Kernels are at root of their partition (ESP or separate boot partition)
 					initrd_path = f'initrd=\\initramfs-{kernel}.img'
-				entry = f'"Arch Linux ({kernel})" "{kernel_params} {initrd_path}"'
+				entry = f'"MorvaneOS ({kernel})" "{kernel_params} {initrd_path}"'
 
 			config_contents.append(entry)
 

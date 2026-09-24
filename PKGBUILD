@@ -44,7 +44,7 @@ makedepends=(
   'python-setuptools'
   'python-wheel'
 )
-provides=(archinstall)
+
 conflicts=(archinstall)
 source=("$pkgname::git+$url.git#branch=morvane")
 sha256sums=('SKIP')

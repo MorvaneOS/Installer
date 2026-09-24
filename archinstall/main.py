@@ -49,17 +49,17 @@ def _check_online(wifi_handler: WifiHandler | None = None) -> bool:
 
 
 def _fetch_arch_db() -> bool:
-	info('Fetching Arch Linux package database...')
+	info('Fetching MorvaneOS package databases...')
 	try:
 		Pacman.run('-Sy')
 	except Exception as e:
-		error('Failed to sync Arch Linux package database.')
+		error('Failed to sync the MorvaneOS package databases.')
 		if 'could not resolve host' in str(e).lower():
 			error('Most likely due to a missing network connection or DNS issue.')
 
-		error('Run archinstall --debug and check /var/log/archinstall/install.log for details.')
+		error('Run morvane-install --debug and check /var/log/morvane-installer/install.log for details.')
 
-		debug(f'Failed to sync Arch Linux package database: {e}')
+		debug(f'Failed to sync the MorvaneOS package databases: {e}')
 		return False
 
 	return True
@@ -133,7 +133,7 @@ def run() -> int:
 		return 0
 
 	if os.getuid() != 0:
-		print(tr('Archinstall requires root privileges to run. See --help for more.'))
+		print(tr('morvane-install needs root privileges to run. See --help for more.'))
 		return 1
 
 	translation_handler.save_console_font()
@@ -179,11 +179,11 @@ def _error_message(exc: Exception) -> None:
 
 	text = textwrap.dedent(
 		"""\
-		Archinstall experienced the above error. If you think this is a bug, please report it to
-		https://github.com/archlinux/archinstall and include the log file "/var/log/archinstall/install.log".
+		The MorvaneOS installer hit the error above. If you think this is a bug, please report it at
+		https://github.com/MorvaneOS/Installer/issues and include the log file "/var/log/morvane-installer/install.log".
 
 		Hint: To upload the log and get a shareable URL, run
-		archinstall share-log
+		morvane-install share-log
 		"""
 	)
 	warn(text)

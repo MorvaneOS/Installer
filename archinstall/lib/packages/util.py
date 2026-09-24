@@ -12,9 +12,9 @@ def check_version_upgrade() -> str | None:
 	upgrade = check_package_upgrade('morvane-installer')
 
 	if upgrade is None:
-		debug('No archinstall upgrades found')
+		debug('No morvane-installer upgrades found')
 		return None
 
-	debug(f'Archinstall latest: {upgrade}')
+	debug(f'morvane-installer latest: {upgrade}')
 
 	return upgrade

@@ -312,7 +312,7 @@ async def select_devices(preset: list[BDevice] | None = []) -> list[BDevice] | N
 	devices = device_handler.devices
 
 	if len(devices) < 1:
-		await Notify(tr('No disks were detected. A disk is required to be able to install Arch Linux')).show()
+		await Notify(tr('No disks were detected. A disk is required to be able to install MorvaneOS')).show()
 		return None
 
 	items = [
@@ -426,7 +426,7 @@ async def select_disk_config(preset: DiskLayoutConfiguration | None = None) -> D
 			if selection == pre_mount_mode:
 				output = tr('Enter root mount directory') + '\n\n'
 				output += tr('You will use whatever drive-setup is mounted at the specified directory') + '\n'
-				output += tr("WARNING: Archinstall won't check the suitability of this setup")
+				output += tr("WARNING: The installer won't check the suitability of this setup")
 
 				path = await prompt_dir(output, allow_skip=True)
 
@@ -733,7 +733,7 @@ async def suggest_multi_disk_layout(
 	if home_device is None or root_device is None:
 		text = tr('The selected drives do not have the minimum capacity required for an automatic suggestion\n')
 		text += tr('Minimum capacity for /home partition: {}GiB\n').format(min_home_partition_size.format_size(Unit.GiB))
-		text += tr('Minimum capacity for Arch Linux partition: {}GiB').format(desired_root_partition_size.format_size(Unit.GiB))
+		text += tr('Minimum capacity for MorvaneOS partition: {}GiB').format(desired_root_partition_size.format_size(Unit.GiB))
 
 		_ = await Notify(text).show()
 		return []
@@ -808,7 +808,7 @@ async def suggest_multi_disk_layout(
 async def suggest_lvm_layout(
 	disk_config: DiskLayoutConfiguration,
 	filesystem_type: FilesystemType | None = None,
-	vg_grp_name: str = 'ArchinstallVg',
+	vg_grp_name: str = 'MorvaneVg',
 ) -> LvmConfiguration:
 	if disk_config.config_type != DiskLayoutType.Default:
 		raise ValueError('LVM suggested volumes are only available for default partitioning')

@@ -30,7 +30,7 @@ def show_menu(
 	mirror_list_handler: MirrorListHandler,
 ) -> None:
 	upgrade = check_version_upgrade()
-	title_text = 'Archlinux'
+	title_text = 'MorvaneOS'
 
 	if upgrade:
 		text = tr('New version available') + f': {upgrade}'

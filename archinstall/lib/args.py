@@ -99,7 +99,7 @@ class ArchConfigType(StrEnum):
 	def text(self) -> str:
 		match self:
 			case ArchConfigType.ARCHINSTALL_LANGUAGE:
-				return tr('ArchInstall Language')
+				return tr('Installer language')
 			case ArchConfigType.VERSION:
 				return tr('Version')
 			case ArchConfigType.SCRIPT:
@@ -165,7 +165,7 @@ class ArchConfig:
 	app_config: ApplicationConfiguration | None = None
 	auth_config: AuthenticationConfiguration | None = None
 	swap: ZramConfiguration | None = None
-	hostname: str = 'archlinux'
+	hostname: str = 'morvane'
 	kernels: list[str] = field(default_factory=lambda: [DEFAULT_KERNEL.value])
 	ntp: bool = True
 	packages: list[str] = field(default_factory=list)
@@ -586,7 +586,7 @@ class ArchConfigHandler:
 		parser.add_argument(
 			'--skip-wkd',
 			action='store_true',
-			help='Disables checking if archlinux keyring wkd sync is complete.',
+			help='Kept for compatibility; MorvaneOS never waits for a keyring sync.',
 			default=False,
 		)
 		parser.add_argument(
@@ -631,13 +631,13 @@ class ArchConfigHandler:
 			'--skip-version-check',
 			action='store_true',
 			default=False,
-			help='Skip the version check when running archinstall',
+			help='Skip the version check when running morvane-install',
 		)
 		parser.add_argument(
 			'--skip-wifi-check',
 			action='store_true',
 			default=False,
-			help='Skip wifi check when running archinstall',
+			help='Skip the internet connection check when running morvane-install',
 		)
 		parser.add_argument(
 			'--advanced',
@@ -752,7 +752,7 @@ class ArchConfigHandler:
 	def _fetch_from_url(self, url: str) -> str:
 		if urllib.parse.urlparse(url).scheme:
 			try:
-				req = Request(url, headers={'User-Agent': 'ArchInstall'})
+				req = Request(url, headers={'User-Agent': 'MorvaneOS-Installer'})
 				with urlopen(req) as resp:
 					return resp.read().decode('utf-8')
 			except urllib.error.HTTPError as err:

@@ -9,7 +9,7 @@ from archinstall.tui.result import ResultType
 
 
 class PostInstallationAction(Enum):
-	EXIT = tr('Exit archinstall')
+	EXIT = tr('Exit the installer')
 	REBOOT = tr('Reboot system')
 	CHROOT = tr('chroot into installation for post-installation configurations')
 

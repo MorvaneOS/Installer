@@ -34,7 +34,7 @@ class Pacman:
 			time.sleep(0.25)
 
 			if time.monotonic() - started > (60 * 10):
-				error(tr('Pre-existing pacman lock never exited. Please clean up any existing pacman sessions before using archinstall.'))
+				error(tr('Pre-existing pacman lock never exited. Please clean up any existing pacman sessions before using morvane-install.'))
 				sys.exit(1)
 
 		return SysCommand(f'{default_cmd} {args}')
@@ -106,7 +106,7 @@ class Pacman:
 
 		self.ask(
 			'Could not strap in packages',
-			'basestrap failed. See /var/log/archinstall/install.log or above message for error details',
+			'basestrap failed. See /var/log/morvane-installer/install.log or above message for error details',
 			SysCommand,
 			f'basestrap -C {PACMAN_CONF} -K {self.target} {" ".join(packages)} --noconfirm --needed',
 			peek_output=True,
