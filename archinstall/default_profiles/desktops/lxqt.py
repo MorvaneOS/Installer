@@ -24,7 +24,7 @@ class LxqtProfile(Profile):
 			'oxygen-icons',
 			'xdg-utils',
 			'ttf-freefont',
-			'l3afpad',
+			# MorvaneOS: l3afpad isn't in the Artix repos
 			'slock',
 		]
 

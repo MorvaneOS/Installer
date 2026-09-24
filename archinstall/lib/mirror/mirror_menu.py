@@ -225,13 +225,8 @@ class MirrorMenu(AbstractSubMenu[MirrorConfiguration]):
 
 	def _define_menu_options(self) -> list[MenuItem]:
 		return [
-			MenuItem(
-				text=tr('Select regions'),
-				action=lambda x: select_mirror_regions(self._mirror_list_handler, x),
-				value=self._mirror_config.mirror_regions,
-				preview_action=self._prev_regions,
-				key='mirror_regions',
-			),
+			# MorvaneOS: no "Select regions" item. It lists Arch's mirrors, which don't
+			# carry the Artix repos; installs keep the Artix mirrorlist from the ISO.
 			MenuItem(
 				text=tr('Add custom servers'),
 				action=add_custom_mirror_servers,

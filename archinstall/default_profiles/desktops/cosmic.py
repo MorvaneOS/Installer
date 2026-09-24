@@ -23,4 +23,4 @@ class CosmicProfile(Profile):
 	@property
 	@override
 	def default_greeter_type(self) -> GreeterType:
-		return GreeterType.CosmicSession
+		return GreeterType.Sddm  # MorvaneOS: cosmic-greeter has no runit service

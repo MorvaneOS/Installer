@@ -22,7 +22,7 @@ class HyprlandProfile(Profile):
 			'hyprland',
 			'dunst',
 			'kitty',
-			'uwsm',
+			# MorvaneOS: uwsm isn't in the Artix repos
 			'dolphin',
 			'wofi',
 			'xdg-desktop-portal-hyprland',

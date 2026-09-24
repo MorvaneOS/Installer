@@ -51,6 +51,8 @@ class AuthenticationMenu(AbstractSubMenu[AuthenticationConfiguration]):
 				text=tr('U2F login setup'),
 				action=select_u2f_login,
 				value=self._auth_config.u2f_config,
+				# MorvaneOS: needs pam-u2f, which isn't in the Artix repos
+				enabled=False,
 				preview_action=self._prev_u2f_login,
 				key='u2f_config',
 			),

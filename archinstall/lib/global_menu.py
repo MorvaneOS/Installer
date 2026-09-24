@@ -23,7 +23,6 @@ from archinstall.lib.models.locale import LocaleConfiguration
 from archinstall.lib.models.mirrors import MirrorConfiguration
 from archinstall.lib.models.network import NetworkConfiguration, NicType
 from archinstall.lib.models.package_types import DEFAULT_KERNEL
-from archinstall.lib.models.packages import Repository
 from archinstall.lib.models.pacman import PacmanConfiguration
 from archinstall.lib.models.profile import ProfileConfiguration
 from archinstall.lib.network.network_menu import select_network
@@ -75,12 +74,8 @@ class GlobalMenu(AbstractMenu[None]):
 				preview_action=self._prev_locale,
 				key='locale_config',
 			),
-			MenuItem(
-				text=tr('Mirrors and repositories'),
-				action=self._mirror_configuration,
-				preview_action=self._prev_mirror_config,
-				key='mirror_config',
-			),
+			# MorvaneOS: no "Mirrors and repositories" item. Installs use the ISO's Artix
+			# mirrorlist and MorvaneOS's built-in repos; people can add more after install.
 			MenuItem(
 				text=tr('Disk configuration'),
 				action=self._select_disk_config,
@@ -139,7 +134,9 @@ class GlobalMenu(AbstractMenu[None]):
 			MenuItem(
 				text=tr('Network configuration'),
 				action=select_network,
-				value={},
+				# MorvaneOS: default to the live ISO's setup (iwd + dhcpcd). Otherwise the
+				# installed system has no DHCP client and can't get online.
+				value=NetworkConfiguration(NicType.IWD),
 				preview_action=self._prev_network_config,
 				key='network_config',
 			),
@@ -581,16 +578,8 @@ class GlobalMenu(AbstractMenu[None]):
 		return profile_config
 
 	async def _select_additional_packages(self, preset: list[str]) -> list[str]:
-		config: MirrorConfiguration | None = self._item_group.find_by_key('mirror_config').value
-
-		repositories: set[Repository] = set()
-		if config:
-			repositories = set(config.optional_repositories)
-
-		packages = await select_additional_packages(
-			preset,
-			repositories=repositories,
-		)
+		# MorvaneOS: always the built-in repos (select_additional_packages adds them)
+		packages = await select_additional_packages(preset)
 
 		return packages
 

@@ -10,6 +10,10 @@ from archinstall.lib.translationhandler import tr
 from archinstall.tui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.result import ResultType
 
+# MorvaneOS: plasma-login-manager and dms-greeter aren't in the Artix repos, and
+# cosmic-greeter has no runit service
+_UNAVAILABLE_GREETERS = {GreeterType.PlasmaLoginManager, GreeterType.GreetdDms, GreeterType.CosmicSession}
+
 
 class ProfileMenu(AbstractSubMenu[ProfileConfiguration]):
 	def __init__(
@@ -144,7 +148,7 @@ async def select_greeter(
 	preset: GreeterType | None = None,
 ) -> GreeterType | None:
 	if not profile or profile.is_greeter_supported():
-		items = [MenuItem(greeter.value, value=greeter) for greeter in GreeterType]
+		items = [MenuItem(greeter.value, value=greeter) for greeter in GreeterType if greeter not in _UNAVAILABLE_GREETERS]
 		group = MenuItemGroup(items, sort_items=True)
 
 		default: GreeterType | None = None

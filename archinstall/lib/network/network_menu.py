@@ -171,7 +171,8 @@ async def select_network(preset: NetworkConfiguration | None) -> NetworkConfigur
 	Configure the network on the newly installed system
 	"""
 
-	items = [MenuItem(n.display_msg(), value=n) for n in NicType]
+	# MorvaneOS: "Copy ISO" is the same as standalone iwd here, and manual setup needs systemd-networkd
+	items = [MenuItem(n.display_msg(), value=n) for n in NicType if n not in (NicType.ISO, NicType.MANUAL)]
 	group = MenuItemGroup(items, sort_items=False)
 
 	if preset:

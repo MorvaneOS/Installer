@@ -20,7 +20,7 @@ class I3wmProfile(Profile):
 			'i3lock',
 			'i3status',
 			'i3blocks',
-			'xss-lock',
+			# MorvaneOS: xss-lock isn't in the Artix repos
 			'xterm',
 			'lightdm-gtk-greeter',
 			'lightdm',

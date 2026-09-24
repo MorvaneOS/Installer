@@ -133,7 +133,8 @@ class ApplicationMenu(AbstractSubMenu[ApplicationConfiguration]):
 
 
 async def select_power_management(preset: PowerManagementConfiguration | None = None) -> PowerManagementConfiguration | None:
-	group = MenuItemGroup.from_enum(PowerManagement)
+	# MorvaneOS: only power-profiles-daemon; tuned has no runit service in Artix
+	group = MenuItemGroup([MenuItem(PowerManagement.POWER_PROFILES_DAEMON.value, value=PowerManagement.POWER_PROFILES_DAEMON)])
 
 	if preset:
 		group.set_focus_by_value(preset.power_management)

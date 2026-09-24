@@ -28,7 +28,7 @@ class SwayProfile(Profile):
 			'swaylock',
 			'swayidle',
 			'waybar',
-			'wmenu',
+			# MorvaneOS: wmenu isn't in the Artix repos
 			'brightnessctl',
 			'grim',
 			'slurp',

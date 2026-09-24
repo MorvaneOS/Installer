@@ -33,26 +33,15 @@ class AudioApp:
 		install_session: Installer,
 		users: list[User] | None = None,
 	) -> None:
-		if users is None:
-			return
-
-		for user in users:
-			# Create the full path for enabling the pipewire systemd items
-			service_dir = install_session.target / 'home' / user.username / '.config' / 'systemd' / 'user' / 'default.target.wants'
-			service_dir.mkdir(parents=True, exist_ok=True)
-
-			# Set ownership of the entire user catalogue
-			install_session.arch_chroot(f'chown -R {user.username}:{user.username} /home/{user.username}')
-
-			# symlink in the correct pipewire systemd items
-			install_session.arch_chroot(
-				f'ln -sf /usr/lib/systemd/user/pipewire-pulse.service /home/{user.username}/.config/systemd/user/default.target.wants/pipewire-pulse.service',
-				run_as=user.username,
-			)
-			install_session.arch_chroot(
-				f'ln -sf /usr/lib/systemd/user/pipewire-pulse.socket /home/{user.username}/.config/systemd/user/default.target.wants/pipewire-pulse.socket',
-				run_as=user.username,
-			)
+		# MorvaneOS: no systemd user services. Artix's pipewire package ships
+		# artix-pipewire-launcher, which starts pipewire, pipewire-pulse and
+		# wireplumber; desktops run it at login through XDG autostart. Window
+		# managers without autostart support need it added to their own config.
+		autostart = install_session.target / 'etc/xdg/autostart/artix-pipewire-launcher.desktop'
+		autostart.parent.mkdir(parents=True, exist_ok=True)
+		autostart.write_text(
+			'[Desktop Entry]\nType=Application\nName=PipeWire\nComment=Start the PipeWire audio server\nExec=artix-pipewire-launcher\nNoDisplay=true\n'
+		)
 
 	def install(
 		self,

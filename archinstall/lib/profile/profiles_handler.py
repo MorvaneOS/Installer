@@ -350,6 +350,8 @@ class ProfileHandler:
 			# ignore the abstract base classes
 			if file.name == 'profile.py':
 				continue
+			if file.relative_to(profiles_path).as_posix() in _UNAVAILABLE_PROFILES:
+				continue
 			profiles += self._process_profile_file(file)
 
 		self._verify_unique_profile_names(profiles)
@@ -365,5 +367,18 @@ class ProfileHandler:
 			if profile.name not in excluded_profiles:
 				profile.reset()
 
+
+# MorvaneOS: profiles whose main packages aren't in the Artix repos. Skipped here
+# rather than deleted, so merging upstream changes to them stays conflict-free.
+_UNAVAILABLE_PROFILES = {
+	'desktops/budgie.py',
+	'desktops/deepin.py',
+	'desktops/enlightenment.py',
+	'desktops/niri_dms.py',
+	'desktops/qtile.py',
+	'desktops/xmonad.py',
+	'servers/cockpit.py',
+	'servers/tomcat.py',
+}
 
 profile_handler = ProfileHandler()

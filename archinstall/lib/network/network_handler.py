@@ -11,10 +11,12 @@ def install_network_config(
 	profile_config: ProfileConfiguration | None = None,
 ) -> None:
 	match network_config.type:
-		case NicType.ISO:
-			_ = installation.copy_iso_network_config(
-				enable_services=True,  # Sources the ISO network configuration to the install medium.
-			)
+		# MorvaneOS: no systemd-networkd. "ISO" and "standalone iwd" both mean the live
+		# ISO's setup: iwd for Wi-Fi, dhcpcd for addresses on every interface.
+		case NicType.ISO | NicType.IWD:
+			installation.add_additional_packages(['iwd', 'dhcpcd'])
+			installation.enable_service('iwd')
+			installation.enable_service('dhcpcd')
 		case NicType.NM | NicType.NM_IWD:
 			packages = ['networkmanager']
 
@@ -33,13 +35,6 @@ def install_network_config(
 			if network_config.type == NicType.NM_IWD:
 				_configure_nm_iwd(installation)
 				installation.disable_service('iwd.service')
-
-		case NicType.IWD:
-			installation.add_additional_packages(['iwd'])
-			_configure_iwd_standalone(installation)
-			installation.enable_service('iwd.service')
-			installation.enable_service('systemd-networkd.service')
-			installation.enable_service('systemd-resolved.service')
 
 		case NicType.MANUAL:
 			for nic in network_config.nics:

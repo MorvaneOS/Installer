@@ -2,6 +2,7 @@ import os
 import sys
 import time
 
+from archinstall.applications.audio import AudioApp
 from archinstall.lib.applications.application_handler import ApplicationHandler
 from archinstall.lib.args import ArchConfig, ArchConfigHandler
 from archinstall.lib.authentication.authentication_handler import AuthenticationHandler
@@ -16,6 +17,7 @@ from archinstall.lib.log import debug, error, info
 from archinstall.lib.menu.util import delayed_warning
 from archinstall.lib.mirror.mirror_handler import MirrorListHandler
 from archinstall.lib.models import Bootloader
+from archinstall.lib.models.application import Audio, AudioConfiguration
 from archinstall.lib.models.device import DiskLayoutType, EncryptionType
 from archinstall.lib.models.users import User
 from archinstall.lib.network.network_handler import install_network_config
@@ -141,6 +143,13 @@ def perform_installation(
 
 		if profile_config := config.profile_config:
 			profile_handler.install_profile_config(installation, profile_config)
+
+			# MorvaneOS: on Arch, systemd starts PipeWire whenever a desktop needs it; on
+			# runit nothing does, so a desktop with no audio choice would have no sound.
+			# Set up PipeWire unless the user picked an audio option (including none).
+			audio_chosen = config.app_config is not None and config.app_config.audio_config is not None
+			if not audio_chosen and profile_config.profile and profile_config.profile.is_desktop_profile():
+				AudioApp().install(installation, AudioConfiguration(Audio.PIPEWIRE), users)
 
 		if config.packages and config.packages[0] != '':
 			installation.add_additional_packages(config.packages)

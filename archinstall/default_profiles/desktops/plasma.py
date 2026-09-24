@@ -87,7 +87,7 @@ class PlasmaProfile(Profile):
 	@property
 	@override
 	def default_greeter_type(self) -> GreeterType:
-		return GreeterType.PlasmaLoginManager
+		return GreeterType.Sddm  # MorvaneOS: plasma-login-manager isn't in Artix
 
 	async def _select_flavor(self) -> None:
 		header = tr('Select a flavor of KDE Plasma to install') + '\n'

@@ -24,7 +24,7 @@ class NicType(Enum):
 			case NicType.NM_IWD:
 				return tr('Use Network Manager (iwd backend)')
 			case NicType.IWD:
-				return tr('Use standalone iwd')
+				return tr('Use standalone iwd (with dhcpcd)')
 			case NicType.MANUAL:
 				return tr('Manual configuration')
 
