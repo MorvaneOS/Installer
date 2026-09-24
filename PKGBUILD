@@ -1,18 +1,18 @@
-# Maintainer: David Runge <dvzrv@archlinux.org>
-# Maintainer: Giancarlo Razzolini <grazzolini@archlinux.org>
-# Maintainer: Anton Hvornum <torxed@archlinux.org>
-# Contributor: Anton Hvornum <anton@hvornum.se>
-# Contributor: demostanis worlds <demostanis@protonmail.com>
+# Maintainer: Clove Twilight <admin@doughmination.win>
+#
+# MorvaneOS installer: archinstall ported to Artix/runit.
+# Built from the `morvane` branch of github.com/MorvaneOS/Installer.
+# Based on archinstall's own PKGBUILD (David Runge, Giancarlo Razzolini, Anton Hvornum).
 
-pkgname=archinstall
-pkgver=4.4
+pkgname=morvane-installer
+pkgver=4.4.r4748.g18f3f02
 pkgrel=1
-pkgdesc="Just another guided/automated Arch Linux installer with a twist"
+pkgdesc="MorvaneOS installer (archinstall ported to Artix and runit)"
 arch=(any)
-url="https://github.com/archlinux/archinstall"
+url="https://github.com/MorvaneOS/Installer"
 license=(GPL-3.0-only)
 depends=(
-  'arch-install-scripts'
+  'artools-base'  # basestrap, artix-chroot
   'btrfs-progs'
   'coreutils'
   'cryptsetup'
@@ -27,11 +27,10 @@ depends=(
   'python'
   'python-cryptography'
   'python-pydantic'
-  'python-pyparted'
+  'python-pyparted'  # from [morvane]
   'python-textual'
   'python-markdown-it-py'
   'python-linkify-it-py'
-  'systemd'
   'util-linux'
   'xfsprogs'
   'lvm2'
@@ -39,51 +38,30 @@ depends=(
   'libfido2'
 )
 makedepends=(
+  'git'
   'python-build'
   'python-installer'
   'python-setuptools'
-  'python-sphinx'
   'python-wheel'
-  'python-sphinx_rtd_theme'
-  'python-pylint'
-  'python-pylint-pydantic'
-  'ruff'
 )
-optdepends=(
-  'python-systemd: Adds journald logging'
-)
-provides=(python-archinstall archinstall)
-conflicts=(python-archinstall archinstall-git)
-replaces=(python-archinstall archinstall-git)
-source=(
-  $pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz
-  $pkgname-$pkgver.tar.gz.sig::$url/releases/download/$pkgver/$pkgname-$pkgver.tar.gz.sig
-)
-sha512sums=()
-b2sums=()
-validpgpkeys=('8AA2213C8464C82D879C8127D4B58E897A929F2E') # torxed@archlinux.org
-
-check() {
-  cd $pkgname-$pkgver
-  ruff check
-}
+provides=(archinstall)
+conflicts=(archinstall)
+source=("$pkgname::git+$url.git#branch=morvane")
+sha256sums=('SKIP')
 
 pkgver() {
-  cd $pkgname-$pkgver
-
-  awk '$1 ~ /^__version__/ {gsub("\"", ""); print $3}' archinstall/__init__.py
+  cd "$pkgname"
+  local version
+  version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 
 build() {
-  cd $pkgname-$pkgver
-
+  cd "$pkgname"
   python -m build --wheel --no-isolation
-  PYTHONDONTWRITEBYTECODE=1 make man -C docs
 }
 
 package() {
-  cd "$pkgname-$pkgver"
-
+  cd "$pkgname"
   python -m installer --destdir="$pkgdir" dist/*.whl
-  install -vDm 644 docs/_build/man/archinstall.1 -t "$pkgdir/usr/share/man/man1/"
 }
