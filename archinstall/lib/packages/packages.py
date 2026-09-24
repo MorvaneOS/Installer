@@ -76,7 +76,7 @@ def list_available_packages(
 	try:
 		Pacman.run('-Sy')
 	except Exception as e:
-		debug(f'Failed to sync Arch Linux package database: {e}')
+		debug(f'Failed to sync the MorvaneOS package databases: {e}')
 
 	for line in Pacman.run('-S --info'):
 		dec_line = line.decode().rstrip()
@@ -122,7 +122,7 @@ async def select_additional_packages(
 	preset: list[str] = [],
 	repositories: set[Repository] = set(),
 ) -> list[str]:
-	repositories |= {Repository.Core, Repository.Extra}
+	repositories |= Repository.builtin()
 
 	respos_text = ', '.join(r.value for r in repositories)
 	output = tr('Repositories: {}').format(respos_text) + '\n'

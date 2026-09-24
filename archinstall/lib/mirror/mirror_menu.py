@@ -239,13 +239,8 @@ class MirrorMenu(AbstractSubMenu[MirrorConfiguration]):
 				preview_action=self._prev_custom_servers,
 				key='custom_servers',
 			),
-			MenuItem(
-				text=tr('Optional repositories'),
-				action=select_optional_repositories,
-				value=[],
-				preview_action=self._prev_additional_repos,
-				key='optional_repositories',
-			),
+			# MorvaneOS: no "Optional repositories" item. It offered Arch's multilib and
+			# testing repos; MorvaneOS uses its built-in repos (see Repository.builtin()).
 			MenuItem(
 				text=tr('Add custom repository'),
 				action=select_custom_mirror,

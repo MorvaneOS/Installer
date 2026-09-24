@@ -9,6 +9,12 @@ from archinstall.lib.translationhandler import tr
 
 
 class Repository(Enum):
+	# MorvaneOS repos: our own, then Artix's
+	Morvane = 'morvane'
+	System = 'system'
+	World = 'world'
+	Galaxy = 'galaxy'
+	# Arch repos, kept so old config files still parse
 	Core = 'core'
 	Extra = 'extra'
 	Multilib = 'multilib'
@@ -16,6 +22,11 @@ class Repository(Enum):
 	MultilibTesting = 'multilib-testing'
 	CoreTesting = 'core-testing'
 	ExtraTesting = 'extra-testing'
+
+	@classmethod
+	def builtin(cls) -> set[Repository]:
+		"""The repos every MorvaneOS system has enabled."""
+		return {cls.Morvane, cls.System, cls.World, cls.Galaxy}
 
 
 @dataclass
