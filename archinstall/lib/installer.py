@@ -97,6 +97,8 @@ __runit_services__: dict[str, tuple[str, str | None]] = {
 	'sshd': ('sshd', 'openssh-runit'),
 	'systemd-timesyncd': ('ntpd', 'ntp-runit'),
 	'ufw': ('ufw', 'ufw-runit'),
+	'systemd-zram-setup': ('zramen', 'zramen-runit'),
+	'zramen': ('zramen', 'zramen-runit'),
 }
 
 # Additional packages that are installed if the user is running the Live ISO with accessibility tools enabled
@@ -1046,15 +1048,17 @@ class Installer:
 
 	def setup_swap(self, algo: ZramAlgorithm = ZramAlgorithm.ZSTD) -> None:
 		info('Setting up swap on zram')
-		self.pacman.strap('zram-generator')
+		# MorvaneOS: zram-generator is a systemd generator. Artix uses zramen, run by
+		# a runit service that reads its settings from the service's conf file.
+		self.pacman.strap('zramen-runit')
 
 		info(f'Zram compression algorithm: {algo.value}')
 
-		with open(f'{self.target}/etc/systemd/zram-generator.conf', 'w') as zram_conf:
-			zram_conf.write('[zram0]\n')
-			zram_conf.write(f'compression-algorithm = {algo.value}\n')
+		# Same size as zram-generator's default: half the RAM, at most 4 GiB
+		zram_conf = self.target / 'etc/runit/sv/zramen/conf'
+		zram_conf.write_text(f'export ZRAM_COMP_ALGORITHM={algo.value}\nexport ZRAM_SIZE=50\nexport ZRAM_MAX_SIZE=4096\n')
 
-		self.enable_service('systemd-zram-setup@zram0.service')
+		self.enable_service('zramen')
 
 		self._zram_enabled = True
 
