@@ -83,8 +83,10 @@ class PlasmaProfile(Profile):
 		else:
 			flavor = PlasmaFlavor.Meta  # use plasma-meta as the recommended default
 
-		# MorvaneOS: none of the Plasma flavours include a terminal; Konsole is KDE's own
-		return flavor.packages() + ['konsole']
+		# MorvaneOS: none of the Plasma flavours include a terminal (Konsole is KDE's
+		# own), and every Plasma install gets the MorvaneOS look, which the theme
+		# package makes the default for all users via /etc/xdg
+		return flavor.packages() + ['konsole', 'morvane-plasma-theme']
 
 	@property
 	@override
