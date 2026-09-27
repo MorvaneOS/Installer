@@ -250,6 +250,16 @@ class SysInfo:
 		return os.path.isdir('/sys/firmware/efi')
 
 	@staticmethod
+	def secure_boot_setup_mode(efivars: Path = Path('/sys/firmware/efi/efivars')) -> bool:
+		"""MorvaneOS: True when the firmware has no Platform Key, so new Secure Boot keys can be enrolled."""
+		# efivarfs files start with 4 bytes of attributes, then the variable's data (one byte here)
+		try:
+			data = (efivars / 'SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c').read_bytes()
+		except OSError:
+			return False
+		return len(data) == 5 and data[4] == 1
+
+	@staticmethod
 	def _graphics_devices() -> dict[str, str]:
 		return _sys_info.graphics_devices
 

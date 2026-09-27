@@ -17,8 +17,18 @@ class Bootloader(Enum):
 	Refind = 'Refind'
 
 	def has_uki_support(self) -> bool:
-		# MorvaneOS: unified kernel images need systemd's EFI stub, which Artix doesn't ship
-		return False
+		# MorvaneOS: Artix's egummiboot ships the EFI stub mkinitcpio builds UKIs with.
+		# The GRUB and rEFInd UKI paths are untested on Artix, so only these two.
+		match self:
+			case Bootloader.Efistub | Bootloader.Limine:
+				return True
+			case _:
+				return False
+
+	def has_secure_boot_support(self) -> bool:
+		# MorvaneOS: signing relies on a UKI the firmware (or Limine, via the firmware)
+		# verifies. GRUB would need shim or a standalone image with every module built in.
+		return self.has_uki_support()
 
 	def has_removable_support(self) -> bool:
 		match self:
@@ -93,10 +103,12 @@ class BootloaderConfiguration(SubConfig):
 	uki: bool = False
 	removable: bool = True
 	plymouth: PlymouthTheme | None = None
+	# MorvaneOS: enroll machine-owned Secure Boot keys with sbctl and sign the UKIs
+	secure_boot: bool = False
 
 	@override
 	def json(self) -> dict[str, Any]:
-		data = {'bootloader': self.bootloader.json(), 'uki': self.uki, 'removable': self.removable}
+		data = {'bootloader': self.bootloader.json(), 'uki': self.uki, 'removable': self.removable, 'secure_boot': self.secure_boot}
 
 		if self.plymouth is not None:
 			data['plymouth'] = self.plymouth.value
@@ -110,6 +122,8 @@ class BootloaderConfiguration(SubConfig):
 			out.append(tr('UKI enabled'))
 		if self.removable:
 			out.append(tr('Removable'))
+		if self.secure_boot:
+			out.append(tr('Secure Boot'))
 		if self.plymouth is not None:
 			out.append(tr('Plymouth "{}"').format(self.plymouth.value))
 
@@ -121,7 +135,11 @@ class BootloaderConfiguration(SubConfig):
 		uki = config.get('uki', False)
 		removable = config.get('removable', True)
 		plymouth = PlymouthTheme.from_arg(config.get('plymouth', None))
-		return cls(bootloader=bootloader, uki=uki, removable=removable, plymouth=plymouth)
+		secure_boot = config.get('secure_boot', False)
+		if secure_boot and not (uki and bootloader.has_secure_boot_support()):
+			warn(f'Secure Boot needs UKI with Efistub or Limine; disabling it for {bootloader.value}.')
+			secure_boot = False
+		return cls(bootloader=bootloader, uki=uki, removable=removable, plymouth=plymouth, secure_boot=secure_boot)
 
 	@classmethod
 	def get_default(cls, uefi: bool, skip_boot: bool = False) -> Self:
@@ -147,6 +165,9 @@ class BootloaderConfiguration(SubConfig):
 			else:
 				removable_string = tr('Disabled')
 			text += f'{tr("Removable")}: {removable_string}'
+			text += '\n'
+		if self.secure_boot:
+			text += f'{tr("Secure Boot")}: {tr("Enabled")}'
 			text += '\n'
 		if self.plymouth is not None:
 			text += f'{tr("Plymouth")}: {self.plymouth.value}'

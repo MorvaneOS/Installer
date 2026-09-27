@@ -1,3 +1,4 @@
+import hashlib
 import os
 import platform
 import re
@@ -1491,6 +1492,7 @@ class Installer:
 		root: PartitionModification | LvmVolume,
 		uki_enabled: bool = False,
 		bootloader_removable: bool = False,
+		secure_boot: bool = False,
 	) -> None:
 		debug('Installing Limine bootloader')
 
@@ -1500,6 +1502,7 @@ class Installer:
 
 		limine_path = self.target / 'usr' / 'share' / 'limine'
 		config_path = None
+		efi_dir_path_target = None
 		hook_command = None
 
 		if SysInfo.has_uefi():
@@ -1544,6 +1547,13 @@ class Installer:
 			hook_command = (
 				f'/usr/bin/cp /usr/share/limine/BOOTIA32.EFI {efi_dir_path_target}/ && /usr/bin/cp /usr/share/limine/BOOTX64.EFI {efi_dir_path_target}/'
 			)
+			if secure_boot:
+				# MorvaneOS: the fresh copy needs limine.conf's hash enrolled again (see below);
+				# sbctl's hook (zz-sbctl, after this 99-limine one) then re-signs it
+				hook_command += (
+					f' && /usr/bin/b2sum {efi_dir_path_target}/limine.conf'
+					f' | {{ read hash _; /usr/bin/limine enroll-config --quiet {efi_dir_path_target}/BOOTX64.EFI $hash; }}'
+				)
 
 			if not bootloader_removable:
 				# Create EFI boot menu entry for Limine.
@@ -1643,6 +1653,17 @@ class Installer:
 				config_contents += '\n'.join(f'    {it}' for it in entry) + '\n'
 
 		config_path.write_text(config_contents)
+
+		if secure_boot and efi_dir_path_target:
+			# MorvaneOS: Limine reads limine.conf itself rather than through the firmware, so
+			# lock it to this exact config by enrolling its hash into the (to be signed)
+			# executable. Editing limine.conf later needs the same enroll-config step, or
+			# Limine refuses to boot.
+			config_hash = hashlib.blake2b(config_path.read_bytes()).hexdigest()
+			try:
+				self.arch_chroot(f'limine enroll-config --quiet {efi_dir_path_target}/BOOTX64.EFI {config_hash}')
+			except SysCallError as err:
+				warn(f'Could not lock limine.conf to Limine, it can be edited without breaking the signature: {err}')
 
 		self._helper_flags['bootloader'] = 'limine'
 
@@ -1860,10 +1881,13 @@ class Installer:
 						config[index] = m.group(2) + diff_mountpoint + m.group(3)
 					else:
 						config[index] = m.group(1)
-				elif line.startswith('#default_options='):
-					config[index] = line.removeprefix('#')
+				# MorvaneOS: default_options stays commented; it's a splash image from
+				# Arch's systemd package that doesn't exist on Artix
 
 			preset.write_text(''.join(config))
+
+		# MorvaneOS: mkinitcpio builds UKIs with the EFI stub from Artix's egummiboot
+		self.pacman.strap('egummiboot')
 
 		# Directory for the UKIs
 		uki_dir = self.target / efi_partition.relative_mountpoint / 'EFI/Linux'
@@ -1874,7 +1898,12 @@ class Installer:
 			error('Error generating initramfs (continuing anyway)')
 
 	def add_bootloader(
-		self, bootloader: Bootloader, uki_enabled: bool = False, bootloader_removable: bool = False, plymouth: PlymouthTheme | None = None
+		self,
+		bootloader: Bootloader,
+		uki_enabled: bool = False,
+		bootloader_removable: bool = False,
+		plymouth: PlymouthTheme | None = None,
+		secure_boot: bool = False,
 	) -> None:
 		"""
 		Adds a bootloader to the installation instance.
@@ -1889,6 +1918,7 @@ class Installer:
 		:param uki_enabled: Whether to use unified kernel images
 		:param bootloader_removable: Whether to install to removable media location (UEFI only, for GRUB and Limine)
 		:param plymouth: Optional Plymouth theme to install and configure
+		:param secure_boot: Enroll machine-owned Secure Boot keys and sign the UKIs (needs uki_enabled)
 		"""
 
 		for plugin in plugins.values():
@@ -1924,6 +1954,15 @@ class Installer:
 				warn(f'Bootloader {bootloader.value} lacks removable support; disabling.')
 				bootloader_removable = False
 
+		# validate Secure Boot option
+		if secure_boot:
+			if not uki_enabled or not bootloader.has_secure_boot_support():
+				warn(f'Secure Boot needs UKI with Efistub or Limine, not {bootloader.value}; disabling.')
+				secure_boot = False
+			elif not SysInfo.secure_boot_setup_mode():
+				warn('Secure Boot requested but the firmware is not in Setup Mode; disabling.')
+				secure_boot = False
+
 		if plymouth is not None:
 			self._install_plymouth(plymouth)
 
@@ -1944,9 +1983,42 @@ class Installer:
 			case Bootloader.Efistub:
 				self._add_efistub_bootloader(boot_partition, root, uki_enabled)
 			case Bootloader.Limine:
-				self._add_limine_bootloader(boot_partition, efi_partition, root, uki_enabled, bootloader_removable)
+				self._add_limine_bootloader(boot_partition, efi_partition, root, uki_enabled, bootloader_removable, secure_boot)
 			case Bootloader.Refind:
 				self._add_refind_bootloader(boot_partition, efi_partition, root, uki_enabled)
+
+		if secure_boot and efi_partition:
+			self._setup_secure_boot(efi_partition)
+
+	def _setup_secure_boot(self, efi_partition: PartitionModification) -> None:
+		"""
+		MorvaneOS: make Secure Boot keys owned by this machine, sign the boot files and enroll
+		the keys. sbctl's pacman and mkinitcpio hooks re-sign them after later updates.
+
+		Failures here only warn: without enrolled keys, or with Secure Boot left off in the
+		firmware, the system still boots.
+		"""
+		info('Setting up Secure Boot')
+		self.pacman.strap('sbctl')
+
+		esp = self.target / efi_partition.relative_mountpoint
+		# UKIs, plus Limine's executable wherever it was installed
+		boot_files = sorted((esp / 'EFI/Linux').glob('arch-*.efi'))
+		boot_files += [f for d in ('BOOT', 'arch-limine') if (f := esp / 'EFI' / d / 'BOOTX64.EFI').exists()]
+
+		try:
+			self.arch_chroot('sbctl create-keys')
+			for file in boot_files:
+				# -s saves the path, so sbctl's pacman hook re-signs it when it changes
+				self.arch_chroot(f'sbctl sign -s {shlex.quote("/" + str(file.relative_to(self.target)))}')
+			# --microsoft keeps Microsoft's keys, which Windows and many graphics and
+			# network cards' firmware (option ROMs) are signed with
+			self.arch_chroot('sbctl enroll-keys --microsoft')
+		except SysCallError as err:
+			warn(f'Secure Boot setup failed, leaving it off: {err}')
+			return
+
+		info('Secure Boot keys enrolled. Turn Secure Boot on in the firmware settings after rebooting.')
 
 	def add_additional_packages(self, packages: str | list[str]) -> None:
 		return self.pacman.strap(packages)

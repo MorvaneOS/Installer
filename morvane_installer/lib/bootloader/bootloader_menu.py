@@ -1,6 +1,7 @@
 import textwrap
 from typing import override
 
+from morvane_installer.lib.hardware import SysInfo
 from morvane_installer.lib.menu.abstract_menu import AbstractSubMenu
 from morvane_installer.lib.menu.helpers import Confirmation, Selection
 from morvane_installer.lib.models.bootloader import Bootloader, BootloaderConfiguration, PlymouthTheme
@@ -19,6 +20,7 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 		self._bootloader_conf = bootloader_conf
 		self._skip_boot = skip_boot
 		self._uefi = uefi
+		self._setup_mode = uefi and SysInfo.secure_boot_setup_mode()
 		menu_options = self._define_menu_options()
 
 		self._item_group = MenuItemGroup(menu_options, sort_items=False, checkmarks=True)
@@ -40,6 +42,10 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 		removable_enabled = self._uefi and bootloader.has_removable_support()
 		if not removable_enabled:
 			self._bootloader_conf.removable = False
+
+		secure_boot_enabled = self._secure_boot_available(bootloader)
+		if not secure_boot_enabled:
+			self._bootloader_conf.secure_boot = False
 
 		return [
 			MenuItem(
@@ -67,6 +73,14 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 				enabled=removable_enabled,
 			),
 			MenuItem(
+				text=tr('Secure Boot'),
+				action=self._select_secure_boot,
+				value=self._bootloader_conf.secure_boot,
+				preview_action=self._prev_secure_boot,
+				key='secure_boot',
+				enabled=secure_boot_enabled,
+			),
+			MenuItem(
 				text=tr('Plymouth'),
 				action=self._select_plymouth,
 				value=self._bootloader_conf.plymouth,
@@ -91,6 +105,24 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 		if item.value:
 			return tr('Will install to /EFI/BOOT/ (removable location, safe default)')
 		return tr('Will install to custom location with NVRAM entry')
+
+	def _secure_boot_available(self, bootloader: Bootloader) -> bool:
+		return self._setup_mode and bootloader.has_secure_boot_support()
+
+	def _prev_secure_boot(self, item: MenuItem) -> str | None:
+		if item.value:
+			return tr('New Secure Boot keys will be made for this computer and enrolled, and the kernel images signed')
+		if not self._uefi:
+			return tr('Secure Boot needs a UEFI system')
+		if not self._bootloader_conf.bootloader.has_secure_boot_support():
+			return tr('Secure Boot is available with the Efistub and Limine bootloaders')
+		if not self._setup_mode:
+			return tr(
+				'Secure Boot keys can only be enrolled when the firmware is in Setup Mode. '
+				'To use it, restart into your firmware settings, clear or reset the Secure Boot keys '
+				'to Setup Mode, and start the installer again.'
+			)
+		return tr('Secure Boot: Disabled')
 
 	def _prev_plymouth(self, item: MenuItem) -> str | None:
 		if item.value:
@@ -126,6 +158,13 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 					removable_item.value = True
 					self._bootloader_conf.removable = True
 				removable_item.enabled = True
+
+			# Update Secure Boot option based on bootloader
+			secure_boot_item = self._menu_item_group.find_by_key('secure_boot')
+			secure_boot_item.enabled = self._secure_boot_available(bootloader)
+			if not secure_boot_item.enabled:
+				secure_boot_item.value = False
+				self._bootloader_conf.secure_boot = False
 
 		return bootloader
 
@@ -169,7 +208,43 @@ class BootloaderMenu(AbstractSubMenu[BootloaderConfiguration]):
 			case ResultType.Skip:
 				return preset
 			case ResultType.Selection:
-				return result.item() == MenuItem.yes()
+				uki = result.item() == MenuItem.yes()
+				# MorvaneOS: Secure Boot signs the UKIs, so it can't stay on without them
+				if not uki:
+					self._set_secure_boot(False)
+				return uki
+			case ResultType.Reset:
+				raise ValueError('Unhandled result type')
+
+	def _set_secure_boot(self, enabled: bool) -> None:
+		self._menu_item_group.find_by_key('secure_boot').value = enabled
+		self._bootloader_conf.secure_boot = enabled
+
+	async def _select_secure_boot(self, preset: bool) -> bool:
+		prompt = (
+			tr('Would you like to set up Secure Boot?')
+			+ '\n\n'
+			+ tr('New Secure Boot keys will be made for this computer and enrolled in the firmware, and the kernel')
+			+ '\n'
+			+ tr('images will be signed with them, and re-signed automatically after every kernel update.')
+			+ '\n\n'
+			+ tr("Microsoft's keys are kept as well, so Windows and firmware for devices like graphics cards still load.")
+			+ '\n\n'
+			+ tr('This turns on unified kernel images. After installing, turn Secure Boot on in your firmware settings.')
+			+ '\n'
+		)
+
+		result = await Confirmation(header=prompt, allow_skip=True, preset=preset).show()
+
+		match result.type_:
+			case ResultType.Skip:
+				return preset
+			case ResultType.Selection:
+				secure_boot = result.item() == MenuItem.yes()
+				if secure_boot:
+					self._menu_item_group.find_by_key('uki').value = True
+					self._bootloader_conf.uki = True
+				return secure_boot
 			case ResultType.Reset:
 				raise ValueError('Unhandled result type')
 
