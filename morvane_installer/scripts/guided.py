@@ -187,6 +187,9 @@ def perform_installation(
 			profile_config.profile.post_install(installation)
 
 			if users:
+				# MorvaneOS: users are created before the profile is installed, so they
+				# missed what its theme packages put in /etc/skel
+				installation.copy_skel_to_users(users)
 				profile_config.profile.provision(installation, users)
 
 		# If the user provided a list of services to be enabled, pass the list to the enable_service function.

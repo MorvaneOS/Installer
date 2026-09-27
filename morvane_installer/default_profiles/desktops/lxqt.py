@@ -19,11 +19,13 @@ class LxqtProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-lxqt-theme',  # MorvaneOS look
 			'lxqt',
 			'breeze-icons',
 			'oxygen-icons',
 			'xdg-utils',
-			'ttf-freefont',
+			# MorvaneOS: Arch's old ttf-freefont is gnu-free-fonts in the Artix repos
+			'gnu-free-fonts',
 			# MorvaneOS: l3afpad isn't in the Artix repos
 			'slock',
 		]

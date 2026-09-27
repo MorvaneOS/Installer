@@ -16,6 +16,7 @@ class I3wmProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-i3-theme',  # MorvaneOS look
 			'i3-wm',
 			'i3lock',
 			'i3status',

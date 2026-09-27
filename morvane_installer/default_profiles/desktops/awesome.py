@@ -19,6 +19,7 @@ class AwesomeProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-awesome-theme',  # MorvaneOS look
 			'awesome',
 			'alacritty',
 			'xorg-xrandr',
@@ -41,6 +42,9 @@ class AwesomeProfile(Profile):
 
 		# Replace xterm with alacritty for a smoother experience.
 		awesome_lua = awesome_lua.replace('"xterm"', '"alacritty"')
+
+		# MorvaneOS: the MorvaneOS theme (morvane-awesome-theme) instead of awesome's default
+		awesome_lua = awesome_lua.replace('"default/theme.lua"', '"morvane/theme.lua"')
 
 		with open(f'{install_session.target}/etc/xdg/awesome/rc.lua', 'w') as fh:
 			fh.write(awesome_lua)

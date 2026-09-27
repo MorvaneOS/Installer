@@ -23,6 +23,7 @@ class LabwcProfile(Profile):
 			additional = [seat]
 
 		return [
+			'morvane-labwc-theme',  # MorvaneOS look
 			'alacritty',
 			'labwc',
 		] + additional

@@ -16,6 +16,7 @@ class CinnamonProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-cinnamon-theme',  # MorvaneOS look
 			'cinnamon',
 			'system-config-printer',
 			'gnome-keyring',

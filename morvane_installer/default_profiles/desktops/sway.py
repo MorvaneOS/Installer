@@ -23,6 +23,7 @@ class SwayProfile(Profile):
 			additional = [seat]
 
 		return [
+			'morvane-sway-theme',  # MorvaneOS look
 			'sway',
 			'swaybg',
 			'swaylock',

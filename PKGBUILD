@@ -5,7 +5,7 @@
 # Based on archinstall's own PKGBUILD (David Runge, Giancarlo Razzolini, Anton Hvornum).
 
 pkgname=morvane-installer
-pkgver=4.4.r4759.g08fdbfc
+pkgver=4.4.r4760.g7b6554e
 pkgrel=1
 pkgdesc="MorvaneOS installer (archinstall ported to Artix and runit)"
 arch=(any)

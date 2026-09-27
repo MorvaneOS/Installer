@@ -23,6 +23,7 @@ class NiriProfile(Profile):
 			additional = [seat]
 
 		return [
+			'morvane-niri-theme',  # MorvaneOS look
 			'niri',
 			'alacritty',
 			'fuzzel',

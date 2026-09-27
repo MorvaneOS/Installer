@@ -9,13 +9,54 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from morvane_installer.default_profiles.profile import CustomSetting, GreeterType, Profile
 from morvane_installer.lib.hardware import GfxDriver, GfxPackage
-from morvane_installer.lib.log import debug, error, info
+from morvane_installer.lib.log import debug, error, info, warn
 from morvane_installer.lib.models.profile import ProfileConfiguration
 from morvane_installer.lib.networking import fetch_data_from_url
 from morvane_installer.lib.translationhandler import tr
 
 if TYPE_CHECKING:
 	from morvane_installer.lib.installer import Installer
+
+
+def _write_session_bus_wrapper(install_session: Installer, name: str, wrapped: str) -> None:
+	"""
+	MorvaneOS: on systemd the user manager provides a D-Bus session bus before any
+	session starts. runit doesn't, and GNOME, Cosmic, Hyprland, Sway's bar, portals
+	and notification daemons need one. X sessions under LightDM would get one from
+	dbus-runit's xinitrc.d script, but Wayland sessions get nothing. This wraps a
+	display manager's session script, re-running itself under dbus-run-session
+	whenever there's no bus yet.
+
+	Some sessions (Artix's niri) start themselves with `dbus-launch --exit-with-session`
+	for the same reason. Without an X display to watch, that bus exits straight away and
+	leaves the session pointed at a dead bus, so the wrapper drops it: there's always a
+	bus by the time the session runs. Display managers pass the session command either
+	split into words (LightDM) or as one string (SDDM), so both are handled.
+
+	It also starts PipeWire. The installer's XDG autostart entry for it (see
+	applications/audio.py) only runs in desktops that handle autostart: not window
+	managers, and not GNOME, whose sysvinit session doesn't. The launcher does nothing
+	when PipeWire is already running, so desktops that also autostart it are fine.
+	"""
+	wrapper = install_session.target / 'usr/local/bin' / name
+	wrapper.parent.mkdir(parents=True, exist_ok=True)
+	wrapper.write_text(
+		'#!/bin/sh\n'
+		"# MorvaneOS: give the session a D-Bus session bus and PipeWire, which runit doesn't start\n"
+		'case "$1" in\n'
+		'dbus-launch) [ "$2" = --exit-with-session ] && shift 2 ;;\n'
+		'\'dbus-launch --exit-with-session \'*) cmd=${1#dbus-launch --exit-with-session }; shift; set -- "$cmd" "$@" ;;\n'
+		'esac\n'
+		'if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ ! -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]; then\n'
+		'\texec dbus-run-session "$0" "$@"\n'
+		'fi\n'
+		# In a subshell so it isn't left a zombie child of the session once it exits
+		'if command -v artix-pipewire-launcher >/dev/null; then\n'
+		'\t(artix-pipewire-launcher >/dev/null 2>&1 &)\n'
+		'fi\n'
+		f'exec {wrapped} "$@"\n'
+	)
+	wrapper.chmod(0o755)
 
 
 class ProfileSerialization(TypedDict):
@@ -152,6 +193,12 @@ class ProfileHandler:
 		service = None
 		service_disable = None
 
+		# MorvaneOS: GDM can't run without systemd (the menu no longer offers it), but
+		# older configuration files may still ask for it
+		if greeter == GreeterType.Gdm:
+			warn('GDM needs systemd and does not work on MorvaneOS; installing SDDM instead')
+			greeter = GreeterType.Sddm
+
 		match greeter:
 			case GreeterType.LightdmSlick:
 				packages = ['lightdm', 'lightdm-slick-greeter']
@@ -185,6 +232,25 @@ class ProfileHandler:
 			install_session.enable_service(service)
 		if service_disable:
 			install_session.disable_service(service_disable)
+
+		# MorvaneOS: sessions get their D-Bus session bus from these wrappers
+		match greeter:
+			case GreeterType.Sddm:
+				_write_session_bus_wrapper(install_session, 'morvane-wayland-session', '/usr/share/sddm/scripts/wayland-session')
+				sddm_conf = install_session.target / 'etc/sddm.conf.d/10-morvane-session-bus.conf'
+				sddm_conf.parent.mkdir(parents=True, exist_ok=True)
+				sddm_conf.write_text('[Wayland]\nSessionCommand=/usr/local/bin/morvane-wayland-session\n')
+			case GreeterType.Lightdm | GreeterType.LightdmSlick:
+				_write_session_bus_wrapper(install_session, 'morvane-lightdm-session', '/etc/lightdm/Xsession')
+				# lightdm.conf is read after lightdm.conf.d/ and sets session-wrapper
+				# itself, so it has to be changed there
+				path = install_session.target / 'etc/lightdm/lightdm.conf'
+				path.write_text(
+					path.read_text().replace(
+						'session-wrapper=/etc/lightdm/Xsession',
+						'session-wrapper=/usr/local/bin/morvane-lightdm-session',
+					)
+				)
 
 		# slick-greeter requires a config change
 		if greeter == GreeterType.LightdmSlick:

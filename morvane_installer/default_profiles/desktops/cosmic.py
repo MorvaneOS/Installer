@@ -16,6 +16,7 @@ class CosmicProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-cosmic-theme',  # MorvaneOS look
 			'cosmic',
 			'xdg-user-dirs',
 		]

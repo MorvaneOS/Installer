@@ -16,6 +16,7 @@ class Xfce4Profile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-xfce-theme',  # MorvaneOS look
 			'xfce4',
 			'xfce4-goodies',
 			'pavucontrol',

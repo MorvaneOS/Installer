@@ -67,6 +67,13 @@ from morvane_installer.lib.translationhandler import tr
 # pacman picks the first initramfs provider from the host's pacman.conf, which on non-Arch
 # hosts (EndeavourOS prefers dracut, etc.) breaks the installer's mkinitcpio() and
 # _config_uki() methods that assume mkinitcpio is present in the chroot.
+# MorvaneOS: replaces elogind-runit's readiness check (see Installer._fix_elogind_check)
+ELOGIND_CHECK = """\
+#!/bin/sh
+# MorvaneOS: ready once elogind answers on D-Bus (it no longer writes a pid file)
+exec dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1
+"""
+
 # MorvaneOS: runit is the init system; elogind stands in for systemd-logind.
 __packages__ = ['base', 'sudo', 'linux-firmware', 'mkinitcpio', 'runit', 'elogind-runit'] + [k.value for k in Kernel]
 
@@ -96,6 +103,7 @@ __runit_services__: dict[str, tuple[str, str | None]] = {
 	'postgresql': ('postgresql', 'postgresql-runit'),
 	'power-profiles-daemon': ('power-profiles-daemon', 'power-profiles-daemon-runit'),
 	'sddm': ('sddm', 'sddm-runit'),
+	'seatd': ('seatd', 'seatd-runit'),
 	'sshd': ('sshd', 'openssh-runit'),
 	'systemd-timesyncd': ('ntpd', 'ntp-runit'),
 	'ufw': ('ufw', 'ufw-runit'),
@@ -982,6 +990,7 @@ class Installer:
 
 		self.pacman.strap(self._base_packages)
 		self._helper_flags['base-strapped'] = True
+		self._fix_elogind_check()
 
 		pacman_conf.persist()
 
@@ -1022,6 +1031,22 @@ class Installer:
 		for plugin in plugins.values():
 			if hasattr(plugin, 'on_install'):
 				plugin.on_install(self)
+
+	def _fix_elogind_check(self) -> None:
+		"""
+		MorvaneOS: elogind-runit's readiness check waits for /run/elogind.pid, which
+		elogind (257 and later) no longer writes. The check never passes, so `sv start
+		logind` always times out, and services that run it under `set -e` (LightDM,
+		GDM) exit and restart forever instead of starting. Check that elogind answers
+		on D-Bus instead, which is what those services need. Left alone once the
+		package no longer looks for the pid file.
+		"""
+		check = self.target / 'etc/runit/sv/elogind/check'
+		if not check.is_file() or '/run/elogind.pid' not in check.read_text():
+			return
+
+		info('Fixing the elogind runit readiness check')
+		check.write_text(ELOGIND_CHECK)
 
 	def setup_btrfs_snapshot(
 		self,
@@ -2061,6 +2086,17 @@ class Installer:
 
 		for user in users:
 			self._create_user(user)
+
+	def copy_skel_to_users(self, users: list[User]) -> None:
+		"""
+		MorvaneOS: copies what's in /etc/skel to users' homes, without replacing anything
+		they already have. Users are created before the desktop, so this gives them the
+		defaults its packages put in /etc/skel (the MorvaneOS theme packages' configs).
+		Run as each user, so the files are theirs; links stay links.
+		"""
+		for user in users:
+			# --update=none skips files that exist without failing (cp -n may fail)
+			self.arch_chroot('cp -a --update=none /etc/skel/. ~/', run_as=user.username)
 
 	def _create_user(self, user: User) -> None:
 		# This plugin hook allows for the plugin to handle the creation of the user.

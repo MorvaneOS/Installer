@@ -19,6 +19,7 @@ class HyprlandProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-hyprland-theme',  # MorvaneOS look
 			'hyprland',
 			'dunst',
 			'kitty',

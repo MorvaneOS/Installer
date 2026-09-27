@@ -10,9 +10,9 @@ from morvane_installer.lib.translationhandler import tr
 from morvane_installer.tui.menu_item import MenuItem, MenuItemGroup
 from morvane_installer.tui.result import ResultType
 
-# MorvaneOS: plasma-login-manager and dms-greeter aren't in the Artix repos, and
-# cosmic-greeter has no runit service
-_UNAVAILABLE_GREETERS = {GreeterType.PlasmaLoginManager, GreeterType.GreetdDms, GreeterType.CosmicSession}
+# MorvaneOS: plasma-login-manager and dms-greeter aren't in the Artix repos,
+# cosmic-greeter has no runit service, and GDM needs systemd (see the GNOME profile)
+_UNAVAILABLE_GREETERS = {GreeterType.PlasmaLoginManager, GreeterType.GreetdDms, GreeterType.CosmicSession, GreeterType.Gdm}
 
 
 class ProfileMenu(AbstractSubMenu[ProfileConfiguration]):

@@ -16,6 +16,7 @@ class MateProfile(Profile):
 	@override
 	def packages(self) -> list[str]:
 		return [
+			'morvane-mate-theme',  # MorvaneOS look
 			'mate',
 			'mate-extra',
 		]
