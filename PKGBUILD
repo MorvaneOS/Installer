@@ -1,11 +1,12 @@
 # Maintainer: Clove Twilight <clove@doughmination.gay>
 #
 # MorvaneOS installer: archinstall ported to Artix/runit.
-# Built from the `morvane` branch of github.com/MorvaneOS/Installer.
+# Built from the `morvane` branch of github.com/MorvaneOS/Installer. To release, set
+# `version` in pyproject.toml and pkgver here to the same new number and push.
 # Based on archinstall's own PKGBUILD (David Runge, Giancarlo Razzolini, Anton Hvornum).
 
 pkgname=morvane-installer
-pkgver=4.4.r4760.g7b6554e
+pkgver=4.5.0
 pkgrel=1
 pkgdesc="MorvaneOS installer (archinstall ported to Artix and runit)"
 arch=(any)
@@ -49,11 +50,16 @@ conflicts=(archinstall)
 source=("$pkgname::git+$url.git#branch=morvane")
 sha256sums=('SKIP')
 
-pkgver() {
+prepare() {
   cd "$pkgname"
+  # The branch has to be the release pyproject.toml says it is, so a forgotten bump
+  # stops the build instead of packaging new code under an old version
   local version
   version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
-  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  if [[ $version != "$pkgver" ]]; then
+    error "pyproject.toml says $version, but pkgver is $pkgver"
+    return 1
+  fi
 }
 
 build() {
