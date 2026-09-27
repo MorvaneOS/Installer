@@ -22,6 +22,7 @@ from textual.worker import WorkerCancelled
 from morvane_installer.lib.log import debug
 from morvane_installer.lib.translationhandler import tr
 from morvane_installer.tui.menu_item import MenuItem, MenuItemGroup, MsgLevelType, PreviewResult
+from morvane_installer.tui.palette import MORVANE_THEME, apply_console_palette, restore_console_palette
 from morvane_installer.tui.result import Result, ResultType
 
 ValueT = TypeVar('ValueT')
@@ -212,9 +213,9 @@ class OptionListScreen(BaseScreen[ValueT]):
 	}
 
 	OptionList > .option-list--option-highlighted {
-		background: blue;
-		color: white;
-		text-style: bold;
+		background: ansi_magenta;
+		color: ansi_black;
+		text-style: none;
 	}
 
 	.wrap-preview {
@@ -446,9 +447,9 @@ class SelectListScreen(BaseScreen[ValueT]):
 	}
 
 	SelectionList > .option-list--option-highlighted {
-		background: blue;
-		color: white;
-		text-style: bold;
+		background: ansi_magenta;
+		color: ansi_black;
+		text-style: none;
 	}
 
 	.wrap-preview {
@@ -668,8 +669,8 @@ class ConfirmationScreen(BaseScreen[ValueT]):
 	}
 
 	Button.-active {
-		background: blue;
-		color: white;
+		background: ansi_magenta;
+		color: ansi_black;
 		border: none;
 		text-style: none;
 	}
@@ -796,7 +797,7 @@ class InputScreen(BaseScreen[str]):
 	}
 
 	.input-failure {
-		color: red;
+		color: ansi_red;
 		text-align: center;
 	}
 
@@ -805,15 +806,15 @@ class InputScreen(BaseScreen[str]):
 	}
 
 	.input-hint-msg-error {
-		color: red;
+		color: ansi_red;
 	}
 
 	.input-hint-msg-warning {
-		color: yellow;
+		color: ansi_yellow;
 	}
 
 	.input-hint-msg-info {
-		color: green;
+		color: ansi_green;
 	}
 	"""
 
@@ -1186,15 +1187,17 @@ class _AppInstance(App[ValueT]):
 
 	CSS = """
 	Screen {
-		color: white;
+		color: ansi_bright_white;
 	}
 
 	* {
 		scrollbar-size: 1 1;
 
-		/* Use high contrast colors */
-		scrollbar-color: white;
-		scrollbar-background: black;
+		/* MorvaneOS colours (see palette.py), high contrast on the night background. No bold on
+		   coloured backgrounds: the Linux console draws bold as the bright colour, so it turns
+		   night text grey. */
+		scrollbar-color: ansi_magenta;
+		scrollbar-background: ansi_black;
 	}
 
 	.app-header {
@@ -1202,9 +1205,9 @@ class _AppInstance(App[ValueT]):
 		height: auto;
 		width: 100%;
 		content-align: center middle;
-		background: blue;
-		color: white;
-		text-style: bold;
+		background: ansi_magenta;
+		color: ansi_black;
+		text-style: none;
 	}
 
 	.header-text {
@@ -1220,7 +1223,7 @@ class _AppInstance(App[ValueT]):
 
 	.preview-header {
 		text-align: center;
-		color: white;
+		color: ansi_magenta;
 		text-style: bold;
 		width: 100%;
 
@@ -1229,47 +1232,51 @@ class _AppInstance(App[ValueT]):
 		background: transparent;
 	}
 
+	Rule {
+		color: ansi_bright_black;
+	}
+
 	.no-border {
 		border: none;
 	}
 
 	Input {
-		border: solid gray 50%;
+		border: solid ansi_bright_black;
 		background: transparent;
 		height: 3;
-		color: white;
+		color: ansi_bright_white;
 	}
 
 	Input .input--cursor {
-		color: white;
+		color: ansi_black;
 	}
 
 	Input:focus {
-		border: solid blue;
+		border: solid ansi_magenta;
 	}
 
 	Footer {
 		dock: bottom;
 		width: 100%;
 		background: transparent;
-		color: white;
+		color: ansi_white;
 		height: 1;
 	}
 
 	.footer-key--key {
-		background: black;
-		color: white;
+		background: ansi_black;
+		color: ansi_magenta;
 	}
 
 	.footer-key--description {
-		background: black;
-		color: white;
+		background: ansi_black;
+		color: ansi_white;
 		padding-right: 2;
 	}
 
 	FooterKey.-command-palette {
-		background: black;
-		border-left: vkey white 20%;
+		background: ansi_black;
+		border-left: vkey ansi_bright_black;
 	}
 
 	"""
@@ -1277,6 +1284,10 @@ class _AppInstance(App[ValueT]):
 	def __init__(self, main: InstanceRunnable[ValueT] | Callable[[], Awaitable[ValueT]]) -> None:
 		super().__init__(ansi_color=True)
 		self._main = main
+
+		# MorvaneOS: the MorvaneOS colours (palette.py)
+		self.register_theme(MORVANE_THEME)
+		self.theme = MORVANE_THEME.name
 
 	@override
 	async def _on_exit_app(self) -> None:
@@ -1329,7 +1340,11 @@ class TApp:
 
 	def run(self, main: InstanceRunnable[ValueT] | Callable[[], Awaitable[ValueT]]) -> ValueT:
 		TApp.app = _AppInstance(main)
-		result: ValueT | Exception | None = TApp.app.run()
+		apply_console_palette()
+		try:
+			result: ValueT | Exception | None = TApp.app.run()
+		finally:
+			restore_console_palette()
 
 		if isinstance(result, Exception):
 			raise result
